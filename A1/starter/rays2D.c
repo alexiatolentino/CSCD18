@@ -30,28 +30,31 @@
 /*****************************************************************************
 * COMPLETE THIS TEXT BOX:
 *
-* 1) Student Name: Alexia Tolentino
-* 2) Student Name: Reem Al Halabi
+* 1) Student Name: Reem Al Halabi
+* 2) Student Name: Alexia Tolentino
 *
-* 1) Student number: 1006293967
-* 2) Student number: 1006321927
+* 1) Student number: 1006321927
+* 2) Student number: 1006293967
 * 
-* 1) UtorID: tolent55
-* 2) UtorID: alhala16
+* 1) UtorID alhala16
+* 2) UtorID tolent55
 * 
 * We hereby certify that the work contained here is our own
 *
-* ALEXIA TOLENTINO                  REEM AL HALABI
+* ___Reem Al Halabi____             ___Alexia Tolentino______
 * (sign with your name)            (sign with your name)
 ********************************************************************************/
-
+// Helper functions here:
+// This is a helper function that takes the minimum of 2 numbers
+int min(double a, double b){
+  return(a > b) ? b : a;
+}
 
 struct ray2D makeLightSourceRay(void)
 {
  /*
    This function should return a light ray that has its origin at the light
    source, and whose direction depends on the type of light source.
-
    For point light sources (which emit light in all directions) the direction
     has to be chosen randomly and uniformly over a unit circle (i.e. any
     direction is equally likely)
@@ -72,14 +75,7 @@ struct ray2D makeLightSourceRay(void)
  ************************************************************************/
  
  struct ray2D ray;
-
- // This creates a dummy ray (which won't go anywhere since the direction
- // vector d=[0 0]!. But it's here so you see which data values you have to
- // provide values for given the light source position, and type.  
- // ** REPLACE THE CODE BELOW with code that provides a valid ray that
- //    is consistent with the lightsource.
-
-  //Set Ray's Origin
+ //Set Ray's Origin
   ray.p.px=lightsource.l.p.px;		
   ray.p.py=lightsource.l.p.py;
  
@@ -99,9 +95,9 @@ struct ray2D makeLightSourceRay(void)
     struct point2D rand_d;
     
     //Generate random point on unit circle:
-    float theta = (float)rand()/(float)(RAND_MAX/(2*PI));//Getting random angle in 2pi
-    rand_d.px = ray.p.px + cos(theta) //attain x coordinate of angle
-    rand_d.py = ray.p.py + sin(theta) //attain y coordinate of angle
+    double theta = (double)rand()/(double)(RAND_MAX/(2*PI));//Getting random angle in 2pi
+    rand_d.px = ray.p.px + cos(theta); //attain x coordinate of angle
+    rand_d.py = ray.p.py + sin(theta); //attain y coordinate of angle
 
     //Normalize direction:
     normalize(&rand_d);	
@@ -117,7 +113,13 @@ struct ray2D makeLightSourceRay(void)
   ray.G=lightsource.G;
   ray.B=lightsource.B;
   
-  return(ray);	
+  return(ray);
+
+ // This creates a dummy ray (which won't go anywhere since the direction
+ // vector d=[0 0]!. But it's here so you see which data values you have to
+ // provide values for given the light source position, and type.  
+ // ** REPLACE THE CODE BELOW with code that provides a valid ray that
+ //    is consistent with the lightsource.
 
 }
 
@@ -168,44 +170,59 @@ void propagateRay(struct ray2D *ray, int depth)
  // Step 1 - Find *closest* intersection with the 4 walls (the written part of A1
  //          should help you figure out how to do that.
  int intersected = 0; // set as Fasle
- int i = 0;
+ int j = 0;
+ struct point2D q;
  while (intersected == 0){
-    struct wall2D current_wall = walls[i];
+    struct wall2D current_wall = walls[j];
     // finding the lambda value
-    struct point2D q;
     // checking if the top and bottom walls intersect
-    if(i%2 == 0){
+    if(j%2 == 0){
+      printf(" we made it here %f", j);
       // y coord of intersection point is y value of wall
       q.py = current_wall.w.p.py;
-      float lambda = (current_wall.w.p.py - ray.p.py) / ray.d.py;
+      double lambda = (current_wall.w.p.py - ray->p.py) / ray->d.py;
+      printf(" this is lambda : %f", lambda);
 
-      // If lambda is negative, then we know it won't intersect
-      if(lambda < 1){
-        i++;
+      // If lambda is negative, we know the ray isn't heading towards that wall
+      if(lambda < 0){
+        j++;
       }
       // otherwise we intersect at point (qx,qy) if lambda is positive
       else{
-        q.px = ray.p.px + (lambda* ray.d.px);
-        intersected = 1;
+        q.px = ray->p.px + (lambda* ray->d.px);
+        // checking if ray intersects withing bounds
+        if(abs(q.px) < abs(current_wall.w.p.px)){
+          intersected = 1;
+          printf(" we are intersected with wall:  %f, %f", current_wall.w.p.py, current_wall.w.p.px );
+        }
+        j++;
       }
     }
     else{
       // x coord of intersection point is x value of wall
       q.px = current_wall.w.p.px;
-      float lambda = (current_wall.w.p.px - ray.p.px) / ray.d.px;
-
+      double lambda = (current_wall.w.p.px - ray->p.px) / ray->d.px;
+      printf(" this is lambda : %f", lambda);
+      printf(" this is q.px : %f", q.px);
+      printf(" this is ray->p.px : %f", ray->p.px);
+      printf(" this is ray->d.px : %f", ray->d.px);
+      printf(" this is current_wall.w.p.px : %f",current_wall.w.p.px);
       // If lambda is negative, then we know it won't intersect
-      if(lambda < 1){
-        i++;
+      if(lambda < 0){
+        j++;
       }
       // otherwise we intersect at point (qx,qy) if lambda is positive
+      
       else{
-        q.py = ray.p.py + (lambda* ray.d.py);
-        intersected = 1;
+        q.py = ray->p.py + (lambda* ray->d.py);
+        // checking if ray intersects withing bounds
+        if(abs(q.py) < abs(current_wall.w.p.py)){
+          intersected = 1;
+          printf(" we are intersected with wall:  %f, %f", current_wall.w.p.py, current_wall.w.p.px );
+        }
+        j++;
       }
     }
-
-
 
  }
 
@@ -218,21 +235,38 @@ void propagateRay(struct ray2D *ray, int depth)
  //          Note that you must provide variables for intersectRay() to return
  //          the point of intersection, normal at intersection, lambda, material type,
  //          and refraction index for the closest object hit by the ray.
+ struct point2D p;
+ // Assigning large values for coordinates
+ //.px = 100000;
+ //p.py = 100000;
+ struct point2D n;
+ double lambda;
+ int type;
+ double r_idx;
+ // closest object
 
- 
+
+ printf(" this is RAY : %f", ray->p.px);
+ intersectRay(ray, &p, &n, &lambda, &type, &r_idx);
  // Step 3 - Check whether the closest intersection with objects is closer than the
  //          closest intersection with a wall. Choose whichever is closer.
  
  
  // Distance between our ray and and intersected line 
- magnitude_wall = sqrt((q.px - ray.p.px)**2+(q.py - ray.p.py)**2);
- // Distance betweeen closest shape
+ double magnitude_wall = sqrt(pow((q.px - ray->p.px),2)+pow((q.py - ray->p.py),2));
+ double magnitude_obj = sqrt(pow((p.px - ray->p.px),2)+pow((p.py - ray->p.py),2));
+ printf("magnitude wall is : %f\n, magnitude object is : %f\n",magnitude_wall,magnitude_obj);
+ if(magnitude_wall < magnitude_obj){
+  p = q;
+ }
+ 
 
  // Step 4 - Render the ray onto the image. Use renderRay(). Provide renderRay() with
  //          the origin of the ray, and the intersection point (it will then draw a
  //          ray from the origin to the intersection). You also need to provide the
  //          ray's colour.
 
+ renderRay(&ray->p, &p, ray->R, ray->G, ray->B);
 
  // Step 5 - Decide how to handle the ray's bounce at the intersection. You will have
  //          to provide code for 3 cases:
@@ -330,85 +364,119 @@ void intersectRay(struct ray2D *ray, struct point2D *p, struct point2D *n, doubl
   *        intersection that will be needed to determine how to bounce/refract the
   *	   ray.
   * *******************************************************************************/
- int distances[len(obj_list)];
- int min_dist = INT_MAX;
- // The lambda value of min dist
- int lambda_min_dist = -1;
+ //int distances[MAX_OBJECTS];
+ double distances;
+ //distances = (double*)calloc(MAX_OBJECTS,sizeof(double));
+ double min_dist = 10000;
+ int i = 0;
+
  // looping through the list of objects
- for(int i=0; i< len(obj_list); i++){
-  // x and y coordinates for intersection point
-  struct point2D q;
-  // declare variables for the quadratic function
-  int p = ray.p.px;
-  int c = objects[i].c.px;
-  int d = ray.d.px;
-  int r = objects[i].r;
-  // calculate the discriminant to determine whether there are 0,1, or 2 solutions
-  int disc = ((2*(p-c)*d)**2)-(4*(d**2)*(((p-c)**2)-r**2));
-  if(disc > 0){
-    // we have two solutions
-
-    // Finding lambda using quadratic formula
-    int lambda_1 = (-2*(p-c)*d + sqrt(disc))/(2*d**2);
-    //calculate the first intersection point
-    q.px = ray.p.px + lambda_1*ray.d.px;
-    q.py = ray.p.py + lambda_1*ray.d.py;
-    // calculate the distance between ray source and intersection point
-    int distance_1 = sqrt((q.px - ray.p.px)**2+(q.py - ray.p.py)**2);
+ for(i; i<MAX_OBJECTS; i++){
+   if (objects[i].r<=0) break;
+    // x and y coordinates for intersection point
+    struct point2D q;
+    // declare variables for the quadratic function
+    double point_diff = sqrt(pow((ray->p.px - objects[i].c.px),2)+pow((ray->p.py - objects[i].c.py),2));
+    //double x = ray->p.px;
+    //double c = objects[i].c.px;
+    struct point2D d = ray->d; //d which is direction of ray
+    struct point2D point_mult_d; //point diff mult by d
+    point_mult_d.px = point_diff*d.px;
+    point_mult_d.py = point_diff*d.py;
+    struct point2D xminusc; //line from center of circle to start of ray
+    xminusc.px = 2*(ray->p.px - objects[i].c.px);
+    xminusc.py = 2*(ray->p.py - objects[i].c.py);
     
-    int lambda_2 = (-2*(p-c)*d - sqrt(disc))/(2*d**2);
-    //calculate the second intersection point
-    q.px = ray.p.px + lambda_2*ray.d.px;
-    q.py = ray.p.py + lambda_2*ray.d.py;
-    // calculate the distance between ray source and intersection point
-    int distance_2 = sqrt((q.px - ray.p.px)**2+(q.py - ray.p.py)**2);
+    double mag_d = sqrt(pow((d.px),2)+pow((d.py),2));
+    
 
-    // Take the minimum of the two and append to array of distances
-    if(distance_1 < distance_2){
-      distances[i] = distance_1;
-      lambda = lambda_1;
-    }
+    double r = objects[i].r;
+    double lambda_min;
+
+    //CHECK DIRECTIONS: If the direction of the object to starting point 
+    //                  is oppsite our direction vector, they will intersect
+    if(((xminusc.px < 0) == (-d.px < 0)) && ((xminusc.py < 0) == (-d.py < 0))){
+      // DETERMINE NUMBER OF SOLUTIONS: using discriminant we see how many solutions we have
+      double disc = (pow((dot(&xminusc,&d)),2))-(4*(pow(mag_d,2))*(pow((point_diff),2)-pow(r,2)));
+
+      //Positive Discriminant => 2 solutions
+      if(disc > 0){
+        printf("WE HAVE TWO SOLUTIONS %f\n", disc);
+
+        // Finding lambda using quadratic formula
+        double lambda_1 = (-dot(&xminusc,&d) + sqrt(disc))/(2*pow(mag_d,2)); // for plus case
+        //calculate the first intersection point
+        q.px = ray->p.px + lambda_1*ray->d.px;
+        q.py = ray->p.py + lambda_1*ray->d.py;
+        // calculate the distance between ray source and intersection point
+        double distance_1 = sqrt(pow((q.px - ray->p.px),2)+pow((q.py - ray->p.py),2));
+        
+        double lambda_2 = (-dot(&xminusc,&d) - sqrt(disc))/(2*pow(mag_d,2)); // for minus case
+        //calculate the second intersection point
+        q.px = ray->p.px + lambda_2*ray->d.px;
+        q.py = ray->p.py + lambda_2*ray->d.py;
+        // calculate the distance between ray source and intersection point
+        double distance_2 = sqrt(pow((q.px - ray->p.px),2)+pow((q.py - ray->p.py),2));
+
+        // Take the minimum of the two and append to array of 
+        if(distance_1 < distance_2){
+          distances = distance_1;
+          *lambda = lambda_1;
+          lambda_min = lambda_1;
+        }
+        else{
+          distances = distance_2;
+          *lambda = lambda_2;
+          lambda_min = lambda_2;
+        }
+
+      } 
+      
+      //Zero Discriminant => 1 solution
+      else if(disc = 0){
+        printf("WE HAVE one SOLUTION %f\n", disc);
+        // Finding lambda using quadratic formula
+        lambda_min = (-dot(&xminusc,&d) + sqrt(disc))/(2*pow(mag_d,2));
+
+        //calculate the first intersection point
+        q.px = ray->p.px + lambda_min*ray->d.px;
+        q.py = ray->p.py + lambda_min*ray->d.py;
+        // Take the minimum of the two and append to array of distances
+        distances = sqrt(pow((q.px - ray->p.px),2)+pow((q.py - ray->p.py),2));
+      } 
+      
+      //Negative Discriminant => No solutions 
+      else{
+        printf("WE HAVE no SOLUTIONS %f\n", disc);
+        distances = min_dist;
+      }
+    }//DIRECTION CHECK: They don't go opposite ways, they won't intersect
     else{
-      distances[i] = distance_2;
-      lambda = lambda_2;
+      // we have no solutions
+        printf("Direction diff! No intersection!");
+        distances = min_dist;
     }
-  }
-  elif(disc = 0){
-    // we have one solution
-    // Finding lambda using quadratic formula
-    int lambda = (-2*(p-c)*d + sqrt(disc))/(2*d**2);
-
-    //calculate the first intersection point
-    q.px = ray.p.px + lambda*ray.d.px;
-    q.py = ray.p.py + lambda*ray.d.py;
-    // Take the minimum of the two and append to array of distances
-    distances[i] = sqrt((q.px - ray.p.px)**2+(q.py - ray.p.py)**2);
-  }
-  else{
-    // we have no solutions
-    distances[i] = INT_MAX;
-  }
 
 
-  // Determining the minimum distance
-  if(distances[i] < min_dist){
-    // updating the min value
-    min_dist = distance[i];
-    // update parameters
-    *lambda = lambda;
-    *p.px = q.px;
-    *p.py = q.py;
-    *type = objects[i].material_type;
-    *r_idx = objects[i].r_idx;
-    
-    // finding the unit normal
-    struct ray2D tangent;
-    tangent.p = q;
-    tangent.d.px = -2*PI*r*(sin(2*PI*lambda));
-    tangent.d.py = 2*PI*r*(cos(2*PI*lambda));
-    *n = normalize(tangent.d);
-
-  }
+    //GETTING MINIMUM DISTANCE!
+    if(distances < min_dist){
+      //printf("WE FOUND MIN !!!! %f", distances);
+      // updating the min value
+      min_dist = distances;
+      // update parameters
+      *lambda = lambda_min;
+      p->px = q.px;
+      p->py = q.py;
+      *type = objects[i].material_type;
+      *r_idx = objects[i].r_idx;
+      
+      // finding the unit normal
+      struct ray2D tangent;
+      tangent.p = q;
+      tangent.d.px = -2*PI*r*(sin(2*PI*lambda_min));
+      tangent.d.py = 2*PI*r*(cos(2*PI*lambda_min));
+      normalize(&tangent.d);
+      *n = tangent.d;
+    }
  }
-
 }
