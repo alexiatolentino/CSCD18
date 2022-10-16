@@ -487,7 +487,20 @@ void sphereCoordinates(struct object3D *sphere, double a, double b, double *x, d
 
  /////////////////////////////////
  // TO DO: Complete this function.
- /////////////////////////////////   
+ /////////////////////////////////  
+
+ // from center we move to the transformed position
+ struct point3D center;
+ center.px = 0;
+ center.py = 0;
+ center.pz = 0;
+ // sphere's coordinates (after transformed)
+ matVecMult(sphere->T,&center);
+
+ // starting from center of the circle (assuming radius is 1) we adjust based on the spherical angles
+ *x = sin(b)*cos(a);
+ *y = sin(b)*sin(a);
+ *z = cos(b);
 }
 
 void cylCoordinates(struct object3D *cyl, double a, double b, double *x, double *y, double *z)
@@ -522,6 +535,8 @@ void sphereSample(struct object3D *sphere, double *x, double *y, double *z)
  /////////////////////////////////
  // TO DO: Complete this function.
  /////////////////////////////////   
+
+ 
 }
 
 void cylSample(struct object3D *cyl, double *x, double *y, double *z)
