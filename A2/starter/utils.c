@@ -95,6 +95,10 @@ inline void rayTransform(struct ray3D *ray_orig, struct ray3D *ray_transformed, 
  ///////////////////////////////////////////
  // TO DO: Complete this function
  ///////////////////////////////////////////
+ 
+ ray_transformed->p0 = ray_orig->p0;
+ matVecMult(&obj->Tinv, &ray_transformed->p0);
+
 }
 
 inline void normalTransform(struct point3D *n_orig, struct point3D *n_transformed, struct object3D *obj)
@@ -106,6 +110,18 @@ inline void normalTransform(struct point3D *n_orig, struct point3D *n_transforme
  ///////////////////////////////////////////
  // TO DO: Complete this function
  ///////////////////////////////////////////
+ n_transformed = n_orig;
+
+ double objTrans[4][4];
+
+ for(int i= 0 ; i < 4 ; i++){
+  for(int j = 0; j< 4; j++){
+    objTrans[i][j] = obj->Tinv[j][i];
+  }
+ }
+ matVecMult(objTrans, &n_transformed);
+ normalize(&n_transformed);
+
 }
 
 /////////////////////////////////////////////
@@ -226,7 +242,38 @@ struct object3D *newCyl(double ra, double rd, double rs, double rg, double r, do
  ///////////////////////////////////////////////////////////////////////////////////////
  // TO DO:
  //	Complete the code to create and initialize a new cylinder object.
- ///////////////////////////////////////////////////////////////////////////////////////  
+ /////////////////////////////////////////////////////////////////////////////////////// 
+ if (!cyl) fprintf(stderr,"Unable to allocate new cylinder, out of memory!\n");
+ else{
+  cyl-> alb.ra = ra;
+  cyl->alb.rd=rd;
+  cyl->alb.rs=rs;
+  cyl->alb.rg=rg;
+  cyl->col.R=r;
+  cyl->col.G=g;
+  cyl->col.B=b;
+  cyl->alpha=alpha;
+  cyl->r_index=R_index;
+  cyl->shinyness=shiny;
+  cyl->intersect=&cylIntersect;
+  cyl->surfaceCoords=&cylCoordinates;
+  cyl->randomPoint=&cylSample;
+  cyl->texImg=NULL;
+  cyl->photonMap=NULL;
+  cyl->normalMap=NULL;
+  memcpy(&cyl->T[0][0],&eye4x4[0][0],16*sizeof(double));
+  memcpy(&cyl->Tinv[0][0],&eye4x4[0][0],16*sizeof(double));
+  cyl->textureMap=&texMap;
+  cyl->frontAndBack=0;
+  cyl->photonMapped=0;
+  cyl->normalMapped=0;
+  cyl->isCSG=0;
+  cyl->isLightSource=0;
+  cyl->CSGnext=NULL;
+  cyl->next=NULL; 
+ return(cyl);
+
+ }
 }
 
 
@@ -244,6 +291,41 @@ void planeIntersect(struct object3D *plane, struct ray3D *ray, double *lambda, s
  /////////////////////////////////
  // TO DO: Complete this function.
  /////////////////////////////////
+ *lambda = -1;
+ struct point3D p2;
+ struct point3D p3;
+ struct point3D pminusa;
+ double system[3][3];
+ double systeminv[3][3];
+
+ pminusa.px = p->px - ray->p0.px;
+ pminusa.py = p->py - ray->p0.py;
+ pminusa.pz = p->pz - ray->p0.pz;
+ pminusa.pw = 1;
+ *lambda = dot(&pminusa, n)/dot(&ray->d, n);
+ randomPoint(plane,p2.px, p2.py, p2.pz);
+ randomPoint(plane,p3.px, p3.py, p3.pz);
+
+
+system[0][0] = -(p2.px - p.px);
+system[0][1] = -(p3.px - p.px);
+system[0][2] = d.d.px;
+
+system[1][0] = -(p2.py - p.py);
+system[1][1] = -(p3.py - p.py);
+system[1][2] = d.d.py;
+
+system[2][0] = -(p2.pz - p.pz);
+system[2][1] = -(p3.pz - p.pz);
+system[2][2] = d.d.pz;
+
+
+invert(&system, &systeminv);
+matVecMult(systeminv,pminusa);
+
+*a = pminusa.px;
+*b = pminusa.py;
+*lambda = pminusa.pz;
 }
 
 void sphereIntersect(struct object3D *sphere, struct ray3D *ray, double *lambda, struct point3D *p, struct point3D *n, double *a, double *b)
@@ -254,6 +336,48 @@ void sphereIntersect(struct object3D *sphere, struct ray3D *ray, double *lambda,
  /////////////////////////////////
  // TO DO: Complete this function.
  /////////////////////////////////
+*lambda = -1;
+struct point3D origin;
+origin.px = 0;
+origin.py = 0;
+origin.pz = 0;
+origin.pw = 1;
+
+matVecMult(sphere->T,&origin);
+double A = dot(ray->d,ray->d);
+subVectors(ray->p0,&origin);
+double B = dot(&origin,ray->d);
+double C = dot(&origin,&origin)-1;
+double disc = sqrt(4*pow(B,2)-(4*A*C));
+
+if(disc < 0):{
+  printf("disc is : %f There are NO solutions", disc);
+}
+if(disc == 0):{
+  printf("disc is : %f There is 1 solution", disc);
+  *lambda = (-2*B + disc )/2*A;
+}
+if(disc > 0):{
+  double lambda1 = (-2*B + disc )/2*A;
+  double lambda2 = (-2*B - disc )/2*A;  
+  if(lambda1 < 0 && lambda2 < 0){
+    printf("both intersections behind view plane & not visible");
+    *lambda = -1;
+  }
+  if(lambda1 > 0 && lambda2 < 0){
+    printf("p lambda1 is visible p lambda 2 is not");
+    *lambda = lambda1;
+  }
+  if(lambda1 < 0 && lambda2 > 0){
+    printf("p lambda2 is visible p lambda1 is not");
+    *lambda = lambda2;
+  }
+  if(lambda1 > 0 && lambda2 > 0){
+    printf("both intersections infront view plane & p lambda 2 closest");
+    *lambda = lambda2;
+  }
+}
+
 }
 
 void cylIntersect(struct object3D *cylinder, struct ray3D *r, double *lambda, struct point3D *p, struct point3D *n, double *a, double *b)
@@ -263,7 +387,82 @@ void cylIntersect(struct object3D *cylinder, struct ray3D *r, double *lambda, st
 
  /////////////////////////////////
  // TO DO: Complete this function.
- /////////////////////////////////  
+ ///////////////////////////////// 
+*lambda = -1;
+struct point3D origin;
+origin.px = 0;
+origin.py = 0;
+origin.pz = 0;
+origin.pw = 1;
+// cylinder's coordinates (after transformed)
+matVecMult(cylinder->T,&origin);
+
+//Find intersection with Quadratic wall
+
+//Find intersection with 
+
+// THIS IS OUR PREV CODE COPIED
+struct point3D xminusc;
+subVectors(ray->p0,&origin);
+xminusc.px =  (r->p0.px - origin.px);
+xminusc.py = (r->p0.py - origin.py);
+xminusc.pz = 0;
+
+double A = pow(r->d.py,2) + pow(r->d.px,2);
+double B = 2 * dot(&xminusc, &r->d);
+// Assuming the Radius is 1
+double C = pow(xminusc.px, 2) + pow(xminusc.py, 2) - 1;
+double disc = sqrt(pow(B,2)-(4*A*C));
+
+struct point3D intersected;
+
+
+if(disc < 0):{
+  printf("disc is : %f There are NO solutions", disc);
+}
+if(disc == 0):{
+  printf("disc is : %f There is 1 solution", disc);
+  *lambda1 = (-1*B + disc )/2*A;
+  intersected.px = r->p0.px + r->d.px * lambda1;
+  intersected.py =r->p0.py + r->d.py * lambda1;
+  intersected.pz = 0;
+
+  if(lambda1 > 0){
+    p->px = intersected.px;
+    p->py = intersected.py;
+    *lambda = lambda1;
+    
+  }
+}
+// do this pls
+if(disc > 0):{
+  double lambda1 = (-2*B + disc )/2*A;
+  double lambda2 = (-2*B - disc )/2*A;  
+  if(lambda1 < 0 && lambda2 < 0){
+    printf("both intersections behind view plane & not visible");
+    *lambda = -1;
+  }
+  if(lambda1 > 0 && lambda2 < 0){
+    printf("p lambda1 is visible p lambda 2 is not");
+    *lambda = lambda1;
+  }
+  if(lambda1 < 0 && lambda2 > 0){
+    printf("p lambda2 is visible p lambda1 is not");
+    *lambda = lambda2;
+  }
+  if(lambda1 > 0 && lambda2 > 0){
+    printf("both intersections infront view plane & p lambda 2 closest");
+    *lambda = lambda2;
+  }
+  // do the base
+  // find z cord
+  // check z valid 
+}
+
+
+
+
+
 }
 
 /////////////////////////////////////////////////////////////////
@@ -1130,3 +1329,6 @@ void cleanup(struct object3D *o_list, struct pointLS *l_list, struct textureNode
  }
 }
 
+double distance(struct point3D p1, struct point3D p2){
+  return sqrt(pow((p1.px - p2.px),2)+pow((p1.py - p2.py),2)+pow((p1.pz - p2.pz),2));
+}
