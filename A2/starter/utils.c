@@ -400,7 +400,7 @@ matVecMult(cylinder->T,&origin);
 //Find intersection with Quadratic wall
 
 //Find intersection with 
-
+// hello
 // THIS IS OUR PREV CODE COPIED
 struct point3D xminusc;
 subVectors(ray->p0,&origin);
