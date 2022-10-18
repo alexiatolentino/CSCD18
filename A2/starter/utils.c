@@ -491,16 +491,16 @@ void sphereCoordinates(struct object3D *sphere, double a, double b, double *x, d
 
  // from center we move to the transformed position
  struct point3D center;
- center.px = 0;
- center.py = 0;
- center.pz = 0;
+ center.px = sin(b)*cos(a);
+ center.py = sin(b)*sin(a);
+ center.pz = cos(b);
  // sphere's coordinates (after transformed)
  matVecMult(sphere->T,&center);
 
  // starting from center of the circle (assuming radius is 1) we adjust based on the spherical angles
- *x = sin(b)*cos(a);
- *y = sin(b)*sin(a);
- *z = cos(b);
+ *x = center.px;
+ *y = center.py;
+ *z = center.pz;
 }
 
 void cylCoordinates(struct object3D *cyl, double a, double b, double *x, double *y, double *z)
@@ -531,12 +531,11 @@ void sphereSample(struct object3D *sphere, double *x, double *y, double *z)
  // Sampling should be uniform - note that this is tricky for a sphere, do some
  // research and document in your report what method is used to do this, along
  // with a reference to your source.
- 
- /////////////////////////////////
- // TO DO: Complete this function.
- /////////////////////////////////   
 
- 
+ //Generate random angles
+ double a = drand48()*2*PI; //get random angle from 0 to 2pi
+ double b = (drand48()-0.5)*PI; //get random angle from -pi to pi
+ sphereCoordinates(sphere, a, b, x, y, z); //get adjusted according to a and b
 }
 
 void cylSample(struct object3D *cyl, double *x, double *y, double *z)
