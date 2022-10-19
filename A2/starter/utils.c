@@ -419,106 +419,132 @@ void cylIntersect(struct object3D *cylinder, struct ray3D *r, double *lambda, st
  /////////////////////////////////
  // TO DO: Complete this function.
  ///////////////////////////////// 
-*lambda = -1; 
-struct point3D origin;
-origin.px = 0;
-origin.py = 0;
-origin.pz = 0;
-origin.pw = 1;
-// cylinder's coordinates (after transformed)
-matVecMult(cylinder->T,&origin);
 
-//Find intersection with Quadratic wall
+ //Setting lambda = -1 to indicate no changes made
+ *lambda = -1; 
 
-//Find intersection with 
-// THIS IS OUR PREV CODE COPIED
-struct point3D xminusc;
-subVectors(ray->p0,&origin);
-xminusc.px =  (r->p0.px - origin.px);
-xminusc.py = (r->p0.py - origin.py);
-xminusc.pz = 0;
+ //Declaring necessary objects
+ struct ray3D rayclone;
+ struct point3D circ_norm;
+ rayclone.p0 = ray->p0;
+ rayclone.d = ray->d;
 
-double A = pow(r->d.py,2) + pow(r->d.px,2);
-double B = 2 * dot(&xminusc, &r->d);
-// Assuming the Radius is 1
-double C = pow(xminusc.px, 2) + pow(xminusc.py, 2) - 1;
-double disc = sqrt(pow(B,2)-(4*A*C));
+ // Normal Vector
+ circ_norm.px = 0; circ_norm.py = 0; circ_norm.pz = 0; circ_norm.pw = 1;
 
-struct point3D intersected;
+ //Transform the ray wrt the cylinder
+ rayTransform(ray, &rayclone, cylinder);
 
+ //FINDING INTERSECTION W QUADRATIC WALL (unit circles st z is in the range)
+ //Using quadratic formula
+ double A = pow(r->d.px,2) + pow(r->d.py,2);
+ double B = r->p0.px*r->d.px + r->p0.py*r->d.py;
+ double C = pow(r->p0.px, 2) + pow(r->p0.py, 2) - 1;
+ double disc = sqrt(pow(B,2)-(4*A*C));
 
-if(disc < 0):{
-  printf("disc is : %f There are NO solutions", disc);
-}
-else if(disc == 0):{
-  printf("disc is : %f There is 1 solution", disc);
-  *lambda1 = (-1*B + disc )/2*A;
-  intersected.px = r->p0.px + r->d.px * lambda1;
-  intersected.py =r->p0.py + r->d.py * lambda1;
-  intersected.pz = 0;
-
-  if(lambda1 > 0){
-    p->px = intersected.px;
-    p->py = intersected.py;
+ struct point3D intersected;
+ double z; double opt_lambda; double lambda1; double lambda2;
+ //Checking number of solutions using discriminant
+ if (disc > 0){// TWO SOLUTIONS
+  lambda1 = (-1*B + disc)/(2*A); 
+  lambda2 = (-1*B - disc)/(2*A);
+  
+  //check if z for lambda 1 is within the height of unit cyl
+  z = r->p0.pz + lambda1*r->d.pz;
+  if(z <= 1 && z >=0 && lambda1 > 0){//if height is valid and we're in viewplane
+  //see if this is the smallest lambda
+  //or if lambda hasn't been assigned
+   if((lambda1 < *lambda) || (*lambda == -1)){
     *lambda = lambda1;
-    
+   }
   }
-}
-//if(disc > 0)
-else{
-  double lambda1 = (-1*B + sqrt(pow(B,2)-4*A*C))/(2*A);
-  double lambda2 = (-1*B - sqrt(pow(B,2)-4*A*C))/(2*A);
 
-  intersected.px = r->p0.px + r->d.px * lambda1;
-  intersected.py =r->p0.py + r->d.py * lambda1;
-  intersected.pz = 0;
-  if(lambda1 < 0 && lambda2 < 0){
-    printf("both intersections behind view plane & not visible");
-    *lambda = -1;
-  }
-  else if(lambda1 > 0 && lambda2 < 0){
-    printf("p lambda1 is visible p lambda 2 is not");
-    *lambda = lambda1;
-  }
-  else if(lambda1 < 0 && lambda2 > 0){
-    printf("p lambda2 is visible p lambda1 is not");
+  //check if z for lambda 2 is within the height of unit cyl
+  z = r->p0.pz + lambda2*r->d.pz;
+  if(z <= 1 && z >=0 && lambda2 > 0){//if height is valid and we're in viewplane
+  //see if this is the smallest lambda in comparison to 1
+  //or if lambda hasn't been assigned
+   if((lambda2 < *lambda) || (*lambda == -1)){ 
     *lambda = lambda2;
+   }
   }
-  // (lambda1 > 0 && lambda2 > 0)
-  else{
-    printf("both intersections infront view plane & p lambda 2 closest");
-
-    if((distance(&r->p0,&intersected) < distance(&r->p0,p)) && (distance(&r->p0,&intersected) > EPS && lambda1>0){
-      p->px = intersected.px;
-      p->py = intersected.py;
-      *lambda = lambda1;
-    }
-
-    intersected.px = r->p0.px + r->d.px * lambda2;
-    intersected.py =r->p0.py + r->d.py * lambda2;
-
-    if((distance(&r->p0,&intersected) < distance(&r->p0,p)) && (distance(&r->p0,&intersected) > EPS && lambda2>0){
-      p->px = intersected.px;
-      p->py = intersected.py;
-      *lambda = lambda2;
-    }
+ }
+ else if(disc == 0){// ONE SOLUTION
+  opt_lambda= (-1*B + disc)/(2*A); 
+  
+  //check if z for opt_lambda is within the height of unit cyl
+  z = r->p0.pz + opt_lambda*r->d.pz;
+  if(z <= 1 && z >=0 && opt_lambda > 0){//if height is valid and we're in viewplane
+  //see if this is the smallest lambda
+  //or if lambda hasn't been assigned
+   if((opt_lambda < *lambda) || (*lambda == -1)){
+    *lambda = opt_lambda;
+   }
   }
+ } //Otherwsie NO SOLUTIONS so lambda stays -1
 
-}
-// finding z coordinate
-intersected.pz =r->p0.pz + r->d.pz * lambda;
+ //FIND INTERSECTION BETWEEN BASES OF CYL (plane st z = 0 or 1)
+ //Declaring necessary objects
+ struct point3D origin;
+ struct point3D og_n;
+ struct point3D pos;
 
-if(intersected.pz == 0 || intersected.pz == 1){
-  // we intersected the base!
-}
-else{
-  //we want to see if z coordinate is valid
+ // Origin
+ origin.px = 0; origin.py = 0; origin.pz = 0; origin.pw = 1;
 
-}
+ // Normal Vector
+ og_n.px = 0; og_n.py = 0; og_n.pz = 1; og_n.pw = 1;
 
+ //plane points (z = 0 or 1)
+ struct point3D plane1;
+ plane1.px = 0;plane1.py=0;plane1.pz=1;plane1.pw=1;
+ struct point3D plane2;
+ plane2.px = 0;plane2.py=0;plane2.pz=0;plane2.pw=1;
 
+ //CHECK INTERSECTION FOR PLANE 1
+ //p-a stored for the first plane
+ subVectors(&rayclone->p0, &plane1);
+ lambda1 = dot(&plane1, &og_n)/dot(&ray->d, &og_n);
+ // update the ray's position according to lambda of first plane
+ rayPosition(&rayclone,lambda1,&pos);
 
+ // check if modified pos in circular plane: if x^2 + y^2 <= 1
+ if(pow(pos.px, 2) + pow(pos.py, 2) <= 1){
+  //see if this is the smallest lambda
+  //or if lambda hasn't been assigned
+  if((lambda1 < *lambda) || (*lambda == -1)){ 
+    *lambda = lambda1;
+   }
+ }
 
+ //CHECK INTERSECTION FOR PLANE 2
+ //p-a stored for the second plane
+ subVectors(&rayclone->p0, &plane2);
+ lambda2 = dot(&plane2, &og_n)/dot(&ray->d, &og_n);
+ // update the ray's position according to lambda of first plane
+ rayPosition(&rayclone,lambda2,&pos);
+
+ // check if modified pos in circular plane: if x^2 + y^2 <= 1
+ if(pow(pos.px, 2) + pow(pos.py, 2) <= 1){
+  //see if this is the smallest lambda
+  //or if lambda hasn't been assigned
+  if((lambda2 < *lambda) || (*lambda == -1)){ 
+    *lambda = lambda2;
+   }
+ }
+
+ //CHECKING IF FINAL LAMBDA IN VIEW PLANE
+ if(*lambda > 0){
+  //plane is in the viewplane
+  rayPosition(&rayclone,*lambda,&pos); //update position due to smallest lambda
+  normalTransform(&og_n, n, cylinder); //update normal
+  *a = (atan(pos.py/pos.px)+PI/2)/PI;
+  *b = pos.pz; // corresponding to z that we are dealing with
+  }
+ else{
+  // plane is not in the viewplane
+  lambda = -1;
+  }
 }
 
 /////////////////////////////////////////////////////////////////
