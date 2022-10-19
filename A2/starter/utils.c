@@ -291,41 +291,45 @@ void planeIntersect(struct object3D *plane, struct ray3D *ray, double *lambda, s
  /////////////////////////////////
  // TO DO: Complete this function.
  /////////////////////////////////
- *lambda = -1;
- struct point3D p2;
- struct point3D p3;
- struct point3D pminusa;
- double system[3][3];
- double systeminv[3][3];
+ // clone of the ray to avoid modifying original
+ struct ray3D rayclone;
+ struct point3D origin;
+ struct point3D pos;
+ struct point3D og_n;
+ rayclone.p0 = ray->p0;
+ rayclone.d = ray->d;
 
- pminusa.px = p->px - ray->p0.px;
- pminusa.py = p->py - ray->p0.py;
- pminusa.pz = p->pz - ray->p0.pz;
- pminusa.pw = 1;
- *lambda = dot(&pminusa, n)/dot(&ray->d, n);
- randomPoint(plane,p2.px, p2.py, p2.pz);
- randomPoint(plane,p3.px, p3.py, p3.pz);
+ // Origin
+ origin.px = 0; origin.py = 0; origin.pz = 0; origin.pw = 1;
 
-
-system[0][0] = -(p2.px - p.px);
-system[0][1] = -(p3.px - p.px);
-system[0][2] = d.d.px;
-
-system[1][0] = -(p2.py - p.py);
-system[1][1] = -(p3.py - p.py);
-system[1][2] = d.d.py;
-
-system[2][0] = -(p2.pz - p.pz);
-system[2][1] = -(p3.pz - p.pz);
-system[2][2] = d.d.pz;
+ // Normal Vector
+ og_n.px = 0; og_n.py = 0; og_n.pz = 1; og_n.pw = 1;
 
 
-invert(&system, &systeminv);
-matVecMult(systeminv,pminusa);
+ rayTransform(ray, &rayclone, plane);
+ //p-a stored in origin
+ subVectors(&rayclone->p0, &origin);
+ *lambda = dot(&origin, &og_n)/dot(&ray->d, &og_n);
+ // update the ray's position
+ rayPosition(&rayclone,lambda,&pos);
 
-*a = pminusa.px;
-*b = pminusa.py;
-*lambda = pminusa.pz;
+ // check if modified pos in plane
+ if(abs(pos->px) >= 1 || abs(pos->px) >= 1){
+  lambda = -1;
+ }
+
+ 
+ if(lambda > 0){
+  //plane is in the viewplane
+  normalTransform(&og_n, n, plane);
+  *a = origin.px / -subvectors
+  *b = origin.py;
+  }
+ else{
+  // plane is not in the viewplane
+  lambda = -1;
+  }
+
 }
 
 void sphereIntersect(struct object3D *sphere, struct ray3D *ray, double *lambda, struct point3D *p, struct point3D *n, double *a, double *b)
@@ -401,7 +405,6 @@ matVecMult(cylinder->T,&origin);
 //Find intersection with Quadratic wall
 
 //Find intersection with 
-// hello hi how are you
 // THIS IS OUR PREV CODE COPIED
 struct point3D xminusc;
 subVectors(ray->p0,&origin);
@@ -475,14 +478,11 @@ else{
     }
   }
 
-  // do the base
-  // find z cord
-  // check z valid 
 }
 // finding z coordinate
 intersected.pz =r->p0.pz + r->d.pz * lambda;
 
-if(intersected.pz == origin.pz){
+if(intersected.pz == 0 || intersected.pz == 1){
   // we intersected the base!
 }
 else{
