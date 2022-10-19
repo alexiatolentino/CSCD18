@@ -388,7 +388,7 @@ void cylIntersect(struct object3D *cylinder, struct ray3D *r, double *lambda, st
  /////////////////////////////////
  // TO DO: Complete this function.
  ///////////////////////////////// 
-*lambda = -1;
+*lambda = -1; 
 struct point3D origin;
 origin.px = 0;
 origin.py = 0;
