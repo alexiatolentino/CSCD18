@@ -363,50 +363,45 @@ double C = dot(&aminusc,&aminusc)-1;
 double disc = sqrt(4*pow(B,2)-(4*A*C));
 
 if(disc < 0):{
-  printf("disc is : %f There are NO solutions", disc);
-  lambda = -1;
+ printf("disc is : %f There are NO solutions", disc);
+ lambda = -1;
 }
 if(disc == 0):{
-  printf("disc is : %f There is 1 solution", disc);
-  *lambda = (-2*B + disc )/2*A;
+ printf("disc is : %f There is 1 solution", disc);
+ *lambda = (-2*B + disc )/2*A;
 }
 if(disc > 0):{
-  double lambda1 = (-2*B + disc )/2*A;
-  double lambda2 = (-2*B - disc )/2*A;  
-  if(lambda1 < 0 && lambda2 < 0){
-    printf("both intersections behind view plane & not visible");
-    *lambda = -1;
-  }
-  else if(lambda1 > 0 && lambda2 < 0){
-    printf("p lambda1 is visible p lambda 2 is not");
-    *lambda = lambda1;
-  }
-  else if(lambda1 < 0 && lambda2 > 0){
-    printf("p lambda2 is visible p lambda1 is not");
-    *lambda = lambda2;
-  }
+ double lambda1 = (-2*B + disc )/2*A;
+ double lambda2 = (-2*B - disc )/2*A;  
+ if(lambda1 < 0 && lambda2 < 0){
+  printf("both intersections behind view plane & not visible");
+  *lambda = -1;
+ }
+ else if(lambda1 > 0 && lambda2 < 0){
+  printf("p lambda1 is visible p lambda 2 is not");
+  *lambda = lambda1;
+ }
+ else if(lambda1 < 0 && lambda2 > 0){
+  printf("p lambda2 is visible p lambda1 is not");
+  *lambda = lambda2;
+ }
   // (lambda1 > 0 && lambda2 > 0)
-  else{
-    printf("both intersections infront view plane & p lambda 2 closest");
-    *lambda = lambda2;
-  }
+ else{
+  printf("both intersections infront view plane & p lambda 2 closest");
+  *lambda = lambda2;
+ }
 }
 
-if(lambda > 0){
+ if(*lambda > 0){
   //POI
-  p->px = ray->p0.px + lambda*ray->d.px;
-  p->py = ray->p0.py + lambda*ray->d.py;
-  p->pz = ray->p0.pz + lambda*ray->d.pz;
+  p->px = ray->p0.px + *lambda*ray->d.px;
+  p->py = ray->p0.py + *lambda*ray->d.py;
+  p->pz = ray->p0.pz + *lambda*ray->d.pz;
   p->pw = 1;
   // Normal
   normalTransform(&og_n, n, sphere);
   normalize(n);
-}
-
-
-
-
-
+ }
 
 
 }
