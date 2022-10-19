@@ -364,15 +364,16 @@ if(disc > 0):{
     printf("both intersections behind view plane & not visible");
     *lambda = -1;
   }
-  if(lambda1 > 0 && lambda2 < 0){
+  else if(lambda1 > 0 && lambda2 < 0){
     printf("p lambda1 is visible p lambda 2 is not");
     *lambda = lambda1;
   }
-  if(lambda1 < 0 && lambda2 > 0){
+  else if(lambda1 < 0 && lambda2 > 0){
     printf("p lambda2 is visible p lambda1 is not");
     *lambda = lambda2;
   }
-  if(lambda1 > 0 && lambda2 > 0){
+  // (lambda1 > 0 && lambda2 > 0)
+  else{
     printf("both intersections infront view plane & p lambda 2 closest");
     *lambda = lambda2;
   }
@@ -420,7 +421,7 @@ struct point3D intersected;
 if(disc < 0):{
   printf("disc is : %f There are NO solutions", disc);
 }
-if(disc == 0):{
+else if(disc == 0):{
   printf("disc is : %f There is 1 solution", disc);
   *lambda1 = (-1*B + disc )/2*A;
   intersected.px = r->p0.px + r->d.px * lambda1;
@@ -434,31 +435,60 @@ if(disc == 0):{
     
   }
 }
-// do this pls
-if(disc > 0):{
-  double lambda1 = (-2*B + disc )/2*A;
-  double lambda2 = (-2*B - disc )/2*A;  
+//if(disc > 0)
+else{
+  double lambda1 = (-1*B + sqrt(pow(B,2)-4*A*C))/(2*A);
+  double lambda2 = (-1*B - sqrt(pow(B,2)-4*A*C))/(2*A);
+
+  intersected.px = r->p0.px + r->d.px * lambda1;
+  intersected.py =r->p0.py + r->d.py * lambda1;
+  intersected.pz = 0;
   if(lambda1 < 0 && lambda2 < 0){
     printf("both intersections behind view plane & not visible");
     *lambda = -1;
   }
-  if(lambda1 > 0 && lambda2 < 0){
+  else if(lambda1 > 0 && lambda2 < 0){
     printf("p lambda1 is visible p lambda 2 is not");
     *lambda = lambda1;
   }
-  if(lambda1 < 0 && lambda2 > 0){
+  else if(lambda1 < 0 && lambda2 > 0){
     printf("p lambda2 is visible p lambda1 is not");
     *lambda = lambda2;
   }
-  if(lambda1 > 0 && lambda2 > 0){
+  // (lambda1 > 0 && lambda2 > 0)
+  else{
     printf("both intersections infront view plane & p lambda 2 closest");
-    *lambda = lambda2;
+
+    if((distance(&r->p0,&intersected) < distance(&r->p0,p)) && (distance(&r->p0,&intersected) > EPS && lambda1>0){
+      p->px = intersected.px;
+      p->py = intersected.py;
+      *lambda = lambda1;
+    }
+
+    intersected.px = r->p0.px + r->d.px * lambda2;
+    intersected.py =r->p0.py + r->d.py * lambda2;
+
+    if((distance(&r->p0,&intersected) < distance(&r->p0,p)) && (distance(&r->p0,&intersected) > EPS && lambda2>0){
+      p->px = intersected.px;
+      p->py = intersected.py;
+      *lambda = lambda2;
+    }
   }
+
   // do the base
   // find z cord
   // check z valid 
 }
+// finding z coordinate
+intersected.pz =r->p0.pz + r->d.pz * lambda;
 
+if(intersected.pz == origin.pz){
+  // we intersected the base!
+}
+else{
+  //we want to see if z coordinate is valid
+
+}
 
 
 
@@ -476,7 +506,8 @@ void planeCoordinates(struct object3D *plane, double a, double b, double *x, dou
  
  /////////////////////////////////
  // TO DO: Complete this function.
- /////////////////////////////////   
+ ///////////////////////////////// 
+
 }
 
 void sphereCoordinates(struct object3D *sphere, double a, double b, double *x, double *y, double *z)
