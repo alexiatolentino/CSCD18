@@ -322,8 +322,9 @@ void planeIntersect(struct object3D *plane, struct ray3D *ray, double *lambda, s
  if(lambda > 0){
   //plane is in the viewplane
   normalTransform(&og_n, n, plane);
-  *a = origin.px / -subvectors
-  *b = origin.py;
+  normalize(n);
+  //*a = origin.px / -subvectors
+  //*b = origin.py;
   }
  else{
   // plane is not in the viewplane
@@ -341,11 +342,21 @@ void sphereIntersect(struct object3D *sphere, struct ray3D *ray, double *lambda,
  // TO DO: Complete this function.
  /////////////////////////////////
 *lambda = -1;
+ // clone of the ray to avoid modifying original
+struct ray3D rayclone;
 struct point3D origin;
-origin.px = 0;
-origin.py = 0;
-origin.pz = 0;
-origin.pw = 1;
+struct point3D aminusc;
+struct point3D og_n;
+
+aminusc = ray->p0;
+origin.px = 0; origin.py = 0; origin.pz = 0; origin.pw = 1;
+rayclone.p0 = ray->p0;
+rayclone.d = ray->d;
+rayTransform(ray, &rayclone, sphere);
+
+double A = dot(&rayclone->d,&rayclone->d);
+
+subVectors(&origin, aminusc);
 
 matVecMult(sphere->T,&origin);
 double A = dot(ray->d,ray->d);
@@ -355,11 +366,12 @@ double C = dot(&origin,&origin)-1;
 double disc = pow(B,2)-(A*C);
 
 if(disc < 0):{
-  printf("disc is : %f There are NO solutions", disc);
+ printf("disc is : %f There are NO solutions", disc);
+ lambda = -1;
 }
 if(disc == 0):{
-  printf("disc is : %f There is 1 solution", disc);
-  *lambda = (-2*B + disc )/2*A;
+ printf("disc is : %f There is 1 solution", disc);
+ *lambda = (-2*B + disc )/2*A;
 }
 if(disc > 0):{
   double lambda1 = (-B + disc )/A;
@@ -377,11 +389,23 @@ if(disc > 0):{
     *lambda = lambda2;
   }
   // (lambda1 > 0 && lambda2 > 0)
-  else{
-    printf("both intersections infront view plane & p lambda 2 closest");
-    *lambda = lambda2;
-  }
+ else{
+  printf("both intersections infront view plane & p lambda 2 closest");
+  *lambda = lambda2;
+ }
 }
+
+ if(*lambda > 0){
+  //POI
+  p->px = ray->p0.px + *lambda*ray->d.px;
+  p->py = ray->p0.py + *lambda*ray->d.py;
+  p->pz = ray->p0.pz + *lambda*ray->d.pz;
+  p->pw = 1;
+  // Normal
+  normalTransform(&og_n, n, sphere);
+  normalize(n);
+ }
+
 
 }
 
