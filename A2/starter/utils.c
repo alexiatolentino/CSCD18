@@ -352,7 +352,7 @@ double A = dot(ray->d,ray->d);
 subVectors(ray->p0,&origin);
 double B = dot(&origin,ray->d);
 double C = dot(&origin,&origin)-1;
-double disc = sqrt(4*pow(B,2)-(4*A*C));
+double disc = pow(B,2)-(A*C);
 
 if(disc < 0):{
   printf("disc is : %f There are NO solutions", disc);
@@ -362,8 +362,8 @@ if(disc == 0):{
   *lambda = (-2*B + disc )/2*A;
 }
 if(disc > 0):{
-  double lambda1 = (-2*B + disc )/2*A;
-  double lambda2 = (-2*B - disc )/2*A;  
+  double lambda1 = (-B + disc )/A;
+  double lambda2 = (-B - disc )/A;  
   if(lambda1 < 0 && lambda2 < 0){
     printf("both intersections behind view plane & not visible");
     *lambda = -1;
@@ -414,14 +414,14 @@ void cylIntersect(struct object3D *cylinder, struct ray3D *r, double *lambda, st
  double A = pow(r->d.px,2) + pow(r->d.py,2);
  double B = r->p0.px*r->d.px + r->p0.py*r->d.py;
  double C = pow(r->p0.px, 2) + pow(r->p0.py, 2) - 1;
- double disc = sqrt(pow(B,2)-(4*A*C));
+ double disc = pow(B,2)-(A*C);
 
  struct point3D intersected;
  double z; double opt_lambda; double lambda1; double lambda2;
  //Checking number of solutions using discriminant
  if (disc > 0){// TWO SOLUTIONS
-  lambda1 = (-1*B + disc)/(2*A); 
-  lambda2 = (-1*B - disc)/(2*A);
+  lambda1 = (-1*B + disc)/(A); 
+  lambda2 = (-1*B - disc)/(A);
   
   //check if z for lambda 1 is within the height of unit cyl
   z = r->p0.pz + lambda1*r->d.pz;
@@ -444,7 +444,7 @@ void cylIntersect(struct object3D *cylinder, struct ray3D *r, double *lambda, st
   }
  }
  else if(disc == 0){// ONE SOLUTION
-  opt_lambda= (-1*B + disc)/(2*A); 
+  opt_lambda= (-1*B + disc)/(A); 
   
   //check if z for opt_lambda is within the height of unit cyl
   z = r->p0.pz + opt_lambda*r->d.pz;
