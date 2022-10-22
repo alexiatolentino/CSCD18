@@ -553,11 +553,19 @@ void planeCoordinates(struct object3D *plane, double a, double b, double *x, dou
  // Return in (x,y,z) the coordinates of a point on the plane given by the 2 parameters a,b in [0,1].
  // 'a' controls displacement from the left side of the plane, 'b' controls displacement from the
  // bottom of the plane.
- 
- /////////////////////////////////
- // TO DO: Complete this function.
- ///////////////////////////////// 
+ double point3D original;//Original starts in the original left boottm corner
+ original.px = -1 + 2*a;
+ original.py = -1 + 2*b;
+ original.pz = 0;
+ original.pw = 1;
 
+ // plane's coordinates (after transformed)
+ matVecMult(plane->T, &original);
+
+ //Setting x,y,z
+ *x = original.px;
+ *y = original.py;
+ *z = original.pz;
 }
 
 void sphereCoordinates(struct object3D *sphere, double a, double b, double *x, double *y, double *z)
@@ -590,9 +598,19 @@ void cylCoordinates(struct object3D *cyl, double a, double b, double *x, double 
  // 'a' in [0, 2*PI] corresponds to angle theta around the cylinder
  // 'b' in [0, 1] corresponds to height from the bottom
  
- /////////////////////////////////
- // TO DO: Complete this function.
- /////////////////////////////////   
+//Getting starting point
+ struct point3D original;
+ original.px = cos(a); 
+ original.py = sin(a);
+ original.pz = b;
+
+ // cylinder's coordinates (after transformed)
+ matVecMult(cyl->T, original);
+
+ //Setting x,y,z
+ *x = original.px;
+ *y = original.py;
+ *z = original.pz;
 }
 
 void planeSample(struct object3D *plane, double *x, double *y, double *z)
@@ -601,9 +619,13 @@ void planeSample(struct object3D *plane, double *x, double *y, double *z)
  // Sapling should be uniform, meaning there should be an equal change of gedtting
  // any spot on the plane
 
- /////////////////////////////////
- // TO DO: Complete this function.
- /////////////////////////////////   
+ //Get random value for a and b
+  double a = drand48();
+  double b = drand48();
+
+  //send random a and b to the planeCoordinates function
+  planeCoordinates(plane, a, b, x, y, z);
+
 }
 
 void sphereSample(struct object3D *sphere, double *x, double *y, double *z)
@@ -624,9 +646,13 @@ void cylSample(struct object3D *cyl, double *x, double *y, double *z)
  // Returns the 3D coordinates (x,y,z) of a randomly sampled point on the cylinder
  // Sampling should be uniform over the cylinder.
 
- /////////////////////////////////
- // TO DO: Complete this function.
- /////////////////////////////////   
+  //Get random value for a and b
+  double a = drand48()*2*PI;
+  double b = drand48();
+
+  //send random a and b to the cylCoordinates function
+  cylCoordinates(cyl, a, b, x, y, z);
+ 
 }
 
 
