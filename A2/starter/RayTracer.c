@@ -116,12 +116,39 @@ void findFirstHit(struct ray3D *ray, double *lambda, struct object3D *Os, struct
  //   *p      -  A pointer to a 3D point structure so you can store the coordinates of the intersection point
  //   *n      -  A pointer to a 3D point structure so you can return the normal at the intersection point
  //   *a, *b  -  Pointers toward double variables so you can return the texture coordinates a,b at the intersection point
+ 
+ //Setting Variables
+ //Set lambda to be -1 for no hits default
+ *lambda = -1;
+ struct point3D intersection;
+ struct point3D norm;
+ double temp_lambda;
 
- /////////////////////////////////////////////////////////////
- // TO DO: Implement this function. See the notes for
- // reference of what to do in here
- /////////////////////////////////////////////////////////////
+ //Copy current object
+ struct object3D *obj_clone = object_list;
 
+ //While we have an object in object list
+ while(obj_clone != NULL){
+  //If we're dealing with a new and diff object that our current
+  if(obj_clone != Os){ 
+   obj_clone->intersect(obj_clone, ray, &temp_lambda, &intersection, &norm, a, b);
+
+   //if temp lambda was set through the intersection
+   if (temp_lambda != -1){ 
+   //if current lambda has not been set or temp lambda is better
+    if ((*lambda == -1) || (temp_lambda < *lambda){ 
+     //Set values
+     *p = intersection;
+     *n = norm;
+     *lambda = temp_lambda;
+     *obj = obj_clone;
+    }
+  }
+
+  //Go to next object in linked list
+  obj_clone = obj_clone->next;
+
+ }
 }
 
 void rayTrace(struct ray3D *ray, int depth, struct colourRGB *col, struct object3D *Os)
