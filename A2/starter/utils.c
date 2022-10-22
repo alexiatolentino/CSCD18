@@ -17,19 +17,20 @@
 /*****************************************************************************
 * COMPLETE THIS TEXT BOX:
 *
-* 1) Student Name:		
-* 2) Student Name:		
+* 1) Student Name: Alexia Tolentino
+* 2) Student Name: Reem Al Halabi
 *
-* 1) Student number:
-* 2) Student number:
+* 1) Student number: 1006293967
+* 2) Student number: 1006321927
 * 
-* 1) UtorID
-* 2) UtorID
+* 1) UtorID tolent55
+* 2) UtorID alhala16
 * 
 * We hereby certify that the work contained here is our own
 *
-* ____________________             _____________________
+* Alexia Tolentino                  Reem Al Halabi
 * (sign with your name)            (sign with your name)
+*
 ********************************************************************************/
 
 #include "utils.h"
