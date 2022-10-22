@@ -372,11 +372,11 @@ if(disc < 0):{
 }
 if(disc == 0):{
  printf("disc is : %f There is 1 solution", disc);
- *lambda = (-2*B + disc )/2*A;
+ *lambda = ((-1)*B + sqrt(disc))/A;
 }
 if(disc > 0):{
-  double lambda1 = (-B + disc )/A;
-  double lambda2 = (-B - disc )/A;  
+  double lambda1 = ((-1)*B + sqrt(disc))/A;
+  double lambda2 = ((-1)*B - sqrt(disc))/A;;  
   if(lambda1 < 0 && lambda2 < 0){
     printf("both intersections behind view plane & not visible");
     *lambda = -1;
@@ -445,8 +445,8 @@ void cylIntersect(struct object3D *cylinder, struct ray3D *r, double *lambda, st
  double z; double opt_lambda; double lambda1; double lambda2;
  //Checking number of solutions using discriminant
  if (disc > 0){// TWO SOLUTIONS
-  lambda1 = (-1*B + disc)/(A); 
-  lambda2 = (-1*B - disc)/(A);
+  lambda1 = ((-1)*B + sqrt(disc))/A;
+  lambda2 = ((-1)*B - sqrt(disc))/A;
   
   //check if z for lambda 1 is within the height of unit cyl
   z = r->p0.pz + lambda1*r->d.pz;
