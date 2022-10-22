@@ -179,10 +179,25 @@ void rayTrace(struct ray3D *ray, int depth, struct colourRGB *col, struct object
   return;
  }
 
- ///////////////////////////////////////////////////////
- // TO DO: Complete this function. Refer to the notes
- // if you are unsure what to do here.
- ///////////////////////////////////////////////////////
+ //First thing when ray tracing is to find the first hit
+ findFirstHit(ray, &lambda, Os, &obj, &p, &n, &a, &b);
+
+ //If we hit an object
+ if(lambda > 0  && obj != Os){
+  rtShade(obj, &p, &n, ray, depth, a,b, &I);
+ }
+ else{//Otherwise our ray goes into the distance
+  //set all intensities to be 0
+  I.R = 0;
+  I.G = 0;
+  I.B = 0;
+ }
+
+ //Set colours
+ col->R = I.R;
+ col->G = I.G;
+ col->B = I.B;
+
 }
 
 int main(int argc, char *argv[])
