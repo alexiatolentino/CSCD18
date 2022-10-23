@@ -352,6 +352,31 @@ int main(int argc, char *argv[])
     // TO DO - complete the code that should be in this loop to do the
     //         raytracing!
     ///////////////////////////////////////////////////////////////////
+   //Set up the pixels coordinates
+   pc.pz = cam->wl + du *i;
+   pc.py = cam->wt + dv *j;
+   pc.pz = cam->f;
+   pc.pw = 1;
+
+   //Convert local pixel coordinate to world coordinate
+   matVecMult(cam->C2W, &pc);
+
+   //Assign direction vector for pixel 
+   d.px = pc.px;
+   d.py = pc.py;
+   d.pz = pc.pz;
+   d.pw = 1;
+
+   //Subtract e and d to make d the direction based on pixel originally and the axis
+   subVectors(&e, &d);
+   normalize(&d);
+
+   //Setting up ray
+   ray = newRay(&pc, &d);
+   
+   //trace ray
+   struct object3D obj = NULL;
+   rayTrace(ray, 1, obj);
 
   } // end for i
  } // end for j
