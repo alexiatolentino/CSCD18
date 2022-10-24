@@ -54,6 +54,65 @@ void buildScene(void)
 #include "buildscene.c"		// <-- Import the scene definition! 
 }
 
+/*Helper function for phone model
+  E = raIa + rdId(max(0, ndots)) + rsIs(max(0,cdotm)) + rgIspec
+  This function sets...
+  the ambient component: raIa
+  the diffuse component: rdId(max(0, ndots))
+  and
+  the specular component: rsIs(max(0,cdotm))
+
+  which is used by the regular rtShade
+*/
+void phong(struct object3D *obj, struct point3D *p, struct point3D *n, struct ray3D *ray_ls, struct ray3D *ray, double *amb, struct colourRGB *diff, struct colourRGB *spec)
+{
+  // Setting Ambient component
+  *amb = obj->alb.ra;
+
+  normalize(&ray_ls->d);
+
+  // Set m  = 2(dot(n, &ray_ls->d)) * (n) - ray_ls->d
+  struct point3D m_dir;
+  m_dir.px = 2 * (dot(n, &ray_ls->d))*n->px - ray_ls->d.px;
+  m_dir.py = 2 * (dot(n, &ray_ls->d))*n->py - ray_ls->d.py;
+  m_dir.pz = 2 * (dot(n, &ray_ls->d))*n->pz - ray_ls->d.pz;
+  m_dir.pw = 1;
+  normalize(&m_dir);
+
+  // Set c = -d
+  struct point3D c_dir;
+  c_dir = ray->d;
+  normalize(&c_dir);
+  c_dir.px = -1 * c_dir.px;
+  c_dir.py = -1 * c_dir.py;
+  c_dir.pz = -1 * c_dir.pz;
+  c_dir.pw = 1;
+  normalize(&c_dir);
+
+  if(obj->frontAndBack == 0) {
+    // Setting Diffuse component
+    diff->R = obj->alb.rd * light_list->col.R * max(0, dot(n, &ray_ls->d));
+    diff->G = obj->alb.rd * light_list->col.G * max(0, dot(n, &ray_ls->d));
+    diff->B = obj->alb.rd * light_list->col.B * max(0, dot(n, &ray_ls->d));
+
+    // Setting Specular component
+    spec->R = obj->alb.rs * light_list->col.R * pow(max(0, dot(&c_dir, &m_dir)), obj->shinyness);
+    spec->G = obj->alb.rs * light_list->col.G * pow(max(0, dot(&c_dir, &m_dir)), obj->shinyness);
+    spec->B = obj->alb.rs * light_list->col.B * pow(max(0, dot(&c_dir, &m_dir)), obj->shinyness);
+  } 
+  else {
+    // Setting diffuse component
+    diff->R = obj->alb.rd * light_list->col.R * max(0, abs(dot(n, &ray_ls->d)));
+    diff->G = obj->alb.rd * light_list->col.G * max(0, abs(dot(n, &ray_ls->d)));
+    diff->B = obj->alb.rd * light_list->col.B * max(0, abs(dot(n, &ray_ls->d)));
+
+    // Setting Specular component
+    spec->R = obj->alb.rs * light_list->col.R * pow(abs(max(0, dot(&c_dir, &m_dir))), obj->shinyness);
+    spec->G = obj->alb.rs * light_list->col.G * pow(abs(max(0, dot(&c_dir, &m_dir))), obj->shinyness);
+    spec->B = obj->alb.rs * light_list->col.B * pow(abs(max(0, dot(&c_dir, &m_dir))), obj->shinyness);
+  }
+}
+
 void rtShade(struct object3D *obj, struct point3D *p, struct point3D *n, struct ray3D *ray, int depth, double a, double b, struct colourRGB *col)
 {
  // This function implements the shading model as described in lecture. It takes
@@ -96,60 +155,79 @@ void rtShade(struct object3D *obj, struct point3D *p, struct point3D *n, struct 
  // details about the shading model.
  //////////////////////////////////////////////////////////////
 
- // Be sure to update 'col' with the final colour computed here!
-// shadow ray
- struct ray3D shadow_ray;
- initRay(&shadow_ray, &ray->p0, &ray->d);
- // ray from p to lightsource 
- struct ray3D LS_ray;
- // direction vector to ls (s)
- struct point3D s;
- s.px = light_list->p0.px - p->px;
- s.py = light_list->p0.py - p->py;
- s.pz = light_list->p0.pz - p->pz;
- initRay(&LS_ray, p, &s);
+ // Setting Light Source
+ struct pointLS *lightsource = light_list;
 
- // test for intersection btwn ray and other objects in the scene
+ // Be sure to update 'col' with the final colour computed here!
+ // Initialize ray from intersection to light source
+ struct ray3D ray_ls;
+ struct point3D ls_dir = lightsource->p0;
+ subVectors(p, &ls_dir);
+ initRay(&ray_ls, p, &ls_dir);
+
+ // Test for intersection btwn ray and other objects in the scene
  double lambda = -1;
  struct object3D *hitobj;
  struct point3D p_int, n_int;
- double a_int;
- double b_int;
+ double a_int, b_int;
 
- findFirstHit(&LS_ray,&lambda,obj, &hitobj, &p_int, &n_int, &a_int, &b_int);
+ findFirstHit(&ray_ls, &lambda, obj, &hitobj, &p_int, &n_int, &a_int, &b_int);
+
+ // Setting local and global components
+ struct colourRGB local, global;
+ double ambient;
+ struct colourRGB diffuse, specular;
+
+ // SETTING LOCAL COMPONENTS
  if(lambda > 0 && lambda < 1){
-  // ambient term
-    tmp_col.R += obj->alb.ra * R + obj->alb.rg * R;
-    tmp_col.G += obj->alb.ra * G + obj->alb.rg * G;
-    tmp_col.B += obj->alb.ra * B + obj->alb.rg * B;
+  // Ambient term
+    local.R = obj->alb.ra;
+    local.G = obj->alb.ra;
+    local.B = obj->alb.ra;
  }
-
- else{
-  //phong model
-  // ambient
-    tmp_col.R += obj->alb.ra * R;
-    tmp_col.G += obj->alb.ra * G;
-    tmp_col.B += obj->alb.ra * B;
-
-  //diffuse
-    double ns = dot(n, &s);
-    tmp_col.R += obj->alb.rd * R*max(0, ns);
-    tmp_col.G += obj->alb.rd * G*max(0, ns);
-    tmp_col.B += obj->alb.rd * B*max(0, ns);
-
-  //spec
-    struct point3D c;
-    c.px = ray->d.px*-1;
-    c.py = ray->d.py*-1;
-    c.pz = ray->d.pz*-1;
-    c.pw = 1;
-    normalize(&c);
-    struct point3D m;
-    m.px = 2*dot(n, &s)*n->px - s.px;
-    m.py = 2*dot(n, &s)*n->py - s.py;
-    m.pz = 2*dot(n, &s)*n->pz - s.pz;  
+ else {
+  // Use Phong model to determine local components
+  phong(obj, p, n, &ray_ls, ray, &ambient, &diffuse, &specular);
+  local.R = R * (ambient + diffuse.R) + specular.R;
+  local.G = G * (ambient + diffuse.G) + specular.G;
+  local.B = B * (ambient + diffuse.B) + specular.B;
  }
+ 
 
+// SETTING GLOBAL COMPONENTS
+  if(depth < MAX_DEPTH){
+    // If object has specular components
+    if(obj->alb.rg != 0){
+
+      // Get mirror direction
+      struct ray3D mirror;
+
+      mirror.p0 = *p;
+      mirror.d.px = ray->d.px + (-2 * dot(n, &ray->d))*n->px;
+      mirror.d.py = ray->d.py + (-2 * dot(n, &ray->d))*n->py;
+      mirror.d.pz = ray->d.pz + (-2 * dot(n, &ray->d))*n->pz;
+      mirror.d.pw = 1;
+
+      // Update global initial value
+      global.R = 0;
+      global.G = 0;
+      global.B = 0;
+
+      // Tracing the new mirror ray
+      rayTrace(&mirror, depth + 1, &global, obj);
+
+      // Updating the Ispec term
+      global.R = obj->alb.rg * global.R;
+      global.G = obj->alb.rg * global.G;
+      global.B = obj->alb.rg * global.B;
+
+    }
+  }
+  
+ // Setting limit to local and global components = 1
+ col->R = (local.R + global.R <= 1) ? local.R + global.R : 1;
+ col->G = (local.G + global.G <= 1) ? local.G + global.G : 1;
+ col->B = (local.B + global.B <= 1) ? local.B + global.B : 1;
 
  return;
 
@@ -173,27 +251,26 @@ void findFirstHit(struct ray3D *ray, double *lambda, struct object3D *Os, struct
  //   *n      -  A pointer to a 3D point structure so you can return the normal at the intersection point
  //   *a, *b  -  Pointers toward double variables so you can return the texture coordinates a,b at the intersection point
  
- //Setting Variables
- //Set lambda to be -1 for no hits default
+ // SETTING VARIABLES
  *lambda = -1;
  struct point3D intersection;
-
  struct point3D norm;
  double temp_lambda = *lambda;
  double smallest_lambda = 10000;
- //Copy current object
+
+ // Copy current object
  struct object3D *obj_clone = object_list;
 
- //While we have an object in object list
+ // While we have an object in object list
  while(obj_clone != NULL){
-  //If we're dealing with a new and diff object that our current
+  // If we're dealing with a new and diff object that our current
   if(obj_clone != Os){ 
    (*obj_clone->intersect)(obj_clone, ray, &temp_lambda, p, n, a, b);
 
-    //if temp lambda was set through the intersection
-    //if current lambda has not been set or temp lambda is better
+    // If temp lambda was set through the intersection
+    // If current lambda has not been set or temp lambda is better
     if ( (temp_lambda > 0) && (temp_lambda < smallest_lambda)){ 
-      //Set values
+      // Set values
       intersection = *p;
       norm = *n;
       smallest_lambda = temp_lambda;
@@ -201,7 +278,7 @@ void findFirstHit(struct ray3D *ray, double *lambda, struct object3D *Os, struct
       *obj = obj_clone;
     }
   }
-  //Go to next object in linked list
+  // Go to next object in linked list
    obj_clone = obj_clone->next;
  }
 }
@@ -218,39 +295,33 @@ void rayTrace(struct ray3D *ray, int depth, struct colourRGB *col, struct object
  //            originates so you can discard self-intersections due to numerical
  //            errors. NULL for rays originating from the center of projection. 
  
- double lambda;		// Lambda at intersection
- double a,b;		// Texture coordinates
- struct object3D *obj;	// Pointer to object at intersection
- struct point3D p;	// Intersection point
- struct point3D n;	// Normal at intersection
- struct colourRGB I;	// Colour returned by shading function
+ // SETTING VARIABLES
+ double lambda, a, b;	
+ struct object3D *obj;
+ struct point3D p, n;
+ struct colourRGB I; 
 
- if (depth>MAX_DEPTH)	// Max recursion depth reached. Return invalid colour.
+ // If max depth reached set color to -1
+ if (depth>MAX_DEPTH)
  {
-   col->R=-1;
-   col->G=-1;
-   col->B=-1;
-   return;
+   col->R=-1; col->G=-1; col->B=-1;
+   return; // end function
  }
 
- //First thing when ray tracing is to find the first hit
+ // First thing when ray tracing is to find the first hit
  findFirstHit(ray, &lambda, Os, &obj, &p, &n, &a, &b);
 
- //If we hit an object
+ // If we hit an object get shading
  if(lambda > 0  && obj != Os){
    rtShade(obj, &p, &n, ray, depth, a,b, &I);
  }
- else{//Otherwise our ray goes into the distance
-   //set all intensities to be 0
-   I.R = 0;
-   I.G = 0;
-   I.B = 0;
+ else{// Otherwise our ray goes into the distance
+   // set all intensities to be 0
+   I.R = 0; I.G = 0; I.B = 0;
  }
 
- //Set colours
- col->R = I.R;
- col->G = I.G;
- col->B = I.B;
+ // Set colours
+ col->R = I.R; col->G = I.G; col->B = I.B;
 
 }
 
@@ -406,85 +477,72 @@ int main(int argc, char *argv[])
     // TO DO - complete the code that should be in this loop to do the
     //         raytracing!
     ///////////////////////////////////////////////////////////////////
-   //Set up the pixels coordinates
-  struct point3D u, w, v;
-	struct point3D *t;
-	// finding w vector:
-	double norm_g = sqrt(pow(g.px,2) + pow(g.py,2) + pow(g.pz,2));
-	w.px = (-g.px)/norm_g; w.py = (-g.py)/norm_g; w.pz = (-g.pz)/norm_g; w.pw = 0;
-	// finding u vector:
-	t = cross(&up, &w);
-	double norm_t = sqrt(pow(t->px,2) + pow(t->py,2) + pow(t->pz,2));
-	u.px = t->px / norm_t; u.py = t->py / norm_t; u.pz = t->pz / norm_t; u.pw = 0;
-	struct point3D *wcrossu;
-	wcrossu = cross(&w, &u);
-	v.px = wcrossu->px;
-	v.py = wcrossu->py;
-	v.pz = wcrossu->pz;
-	v.pw = 0;
+    // SETTING VARIABLES
+    struct point3D u, w, v;
+    struct point3D *t;
 
-  double mcw[4][4];
-  mcw[0][0] = u.px;
-  mcw[1][0] = u.py;
-  mcw[2][0] = u.pz;
-  mcw[3][0] = 0;
-  mcw[0][1] = v.px;
-  mcw[1][1] = v.py;
-  mcw[2][1] = v.pz;
-  mcw[3][1] = 0;
-  mcw[0][2] = w.px;
-  mcw[1][2] = w.py;
-  mcw[2][2] = w.pz;
-  mcw[3][2] = 0;
-  mcw[0][3] = 0;
-  mcw[1][3] = 0;
-  mcw[2][3] = 0;
-  mcw[3][3] = 1;
-  nullSetupView(cam, &e, &g, &up, u, v, w);
-   
+    // Finding w vector = -g/|g|
+    double norm_g = sqrt(pow(g.px,2) + pow(g.py,2) + pow(g.pz,2));
+    w.px = (-g.px)/norm_g; w.py = (-g.py)/norm_g; w.pz = (-g.pz)/norm_g; w.pw = 0;
 
-  struct point3D point_coord;
-   point_coord.px = cam->wl + du *i;
-   point_coord.py = cam->wt + dv *j;
-   point_coord.pz = -1;
-   point_coord.pw = 1;
+    // Finding u vector = wxup/|wxup|
+    t = cross(&up, &w);
+    double norm_t = sqrt(pow(t->px,2) + pow(t->py,2) + pow(t->pz,2));
+    u.px = t->px / norm_t; u.py = t->py / norm_t; u.pz = t->pz / norm_t; u.pw = 0;
 
-   //Convert local pixel coordinate to world coordinate
-   matVecMult(mcw, &point_coord);
-   addVectors(&e, &point_coord);
-   point_coord.pw = 1;
-   //Assign direction vector for pixel 
-   struct point3D dir;
-   dir.px = point_coord.px;
-   dir.py = point_coord.py;
-   dir.pz = point_coord.pz;
-   dir.pw = 1;
+    // Finding v vector = uxw
+    struct point3D *wcrossu;
+    wcrossu = cross(&w, &u);
+    v.px = wcrossu->px; v.py = wcrossu->py; v.pz = wcrossu->pz; v.pw = 0;
 
-   //Subtract e and d to make d the direction based on pixel originally and the axis
-   subVectors(&e, &dir);
-   dir.pw = 1;
-   normalize(&dir);
-  
-   struct ray3D new_ray;
-  
-   //Setting up ray
-   initRay(&new_ray,&point_coord, &dir);
-   //trace ray
-   
-   col.R = background.R;
-   col.G = background.G;
-   col.B = background.B;
-   rayTrace(&new_ray, 1, &col,NULL);
+    // Setting up converstion matrix for cam->world coordinates
+    double mcw[4][4];
+    mcw[0][0] = u.px; mcw[1][0] = u.py; mcw[2][0] = u.pz; mcw[3][0] = 0;
+    mcw[0][1] = v.px; mcw[1][1] = v.py; mcw[2][1] = v.pz; mcw[3][1] = 0;
+    mcw[0][2] = w.px; mcw[1][2] = w.py; mcw[2][2] = w.pz; mcw[3][2] = 0;
+    mcw[0][3] = 0; mcw[1][3] = 0; mcw[2][3] = 0; mcw[3][3] = 1;
+    nullSetupView(cam, &e, &g, &up, u, v, w);
+    
+    // Setting camera point coordinates
+    struct point3D point_coord;
+    point_coord.px = cam->wl + du *i;
+    point_coord.py = cam->wt + dv *j;
+    point_coord.pz = -1;
+    point_coord.pw = 1;
 
-    // check!
-    unsigned char val_r = (unsigned char)(col.R * 255);
-    unsigned char val_g = (unsigned char)(col.G * 255);
-    unsigned char val_b = (unsigned char)(col.B * 255);
-    unsigned char col_val_arr[3] = {val_r, val_g, val_b};
+    // Convert local point coordinate to world coordinate using conversion matrix
+    matVecMult(mcw, &point_coord);
+    addVectors(&e, &point_coord);
+    point_coord.pw = 1;
 
-    rgbIm[3*(j*im->sx + (im->sx - i)) + 0] = val_r;
-    rgbIm[3*(j*im->sx + (im->sx - i)) + 1] = val_g;
-    rgbIm[3*(j*im->sx + (im->sx - i)) + 2] = val_b;
+    // Set direction vector for pixel ij
+    struct point3D dir;
+    dir.px = point_coord.px;
+    dir.py = point_coord.py;
+    dir.pz = point_coord.pz;
+    dir.pw = 1;
+
+    // Setting direction to be d-e
+    subVectors(&e, &dir);
+    dir.pw = 1;
+    normalize(&dir);
+
+    // Creating new ray
+    struct ray3D new_ray;
+    initRay(&new_ray,&point_coord, &dir);
+
+    // Setting initial colours
+    col.R = background.R;
+    col.G = background.G;
+    col.B = background.B;
+
+    // Trace the new ray
+    rayTrace(&new_ray, 1, &col,NULL);
+
+    // Setting img colour
+    rgbIm[3*(j*im->sx + (im->sx - i)) + 0] = col.R * 255;
+    rgbIm[3*(j*im->sx + (im->sx - i)) + 1] = col.G * 255;
+    rgbIm[3*(j*im->sx + (im->sx - i)) + 2] = col.B * 255;
   } // end for i
  } // end for j
 

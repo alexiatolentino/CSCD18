@@ -96,20 +96,24 @@ inline void rayTransform(struct ray3D *ray_orig, struct ray3D *ray_transformed, 
  ///////////////////////////////////////////
  // TO DO: Complete this function
  ///////////////////////////////////////////
-
+ 
+ // Setting transformed ray to be original ray
  ray_transformed->p0 = ray_orig->p0;
  ray_transformed->d = ray_orig->d;
+
+ // Transforming the ray's point by objects inverse transform
  matVecMult(obj->Tinv, &ray_transformed->p0);
-	double Tinv_l[4][4];
+
+ // Constructing the inverse transpose matrix 
+ double Tinv_l[4][4];
  for (int i = 0; i < 3; i++){
-			for (int j = 0; j < 3; j++) {
-    Tinv_l[i][j] = obj->Tinv[i][j];
-    Tinv_l[i][3] = 0;
-    Tinv_l[3][i] = 0;
-  }
+		for (int j = 0; j < 3; j++) {
+    Tinv_l[i][j] = obj->Tinv[i][j]; Tinv_l[i][3] = 0; Tinv_l[3][i] = 0;
+    }
 	}
 	Tinv_l[3][3] = 1;
-	
+ 
+ // Transforming by linear part of matrix
  matVecMult(Tinv_l, &ray_transformed->d);
 }
 inline void normalTransform(struct point3D *n_orig, struct point3D *n_transformed, struct object3D *obj)
@@ -121,30 +125,25 @@ inline void normalTransform(struct point3D *n_orig, struct point3D *n_transforme
  ///////////////////////////////////////////
  // TO DO: Complete this function
  ///////////////////////////////////////////
+
+ // Setting normal transformed to be the original normal
  *n_transformed = *n_orig;
 
-	double Tinv_l[4][4];
- for (int i = 0; i < 3; i++){
-			for (int j = 0; j < 3; j++) {
-    Tinv_l[i][j] = obj->Tinv[i][j];
-    Tinv_l[i][3] = 0;
-    Tinv_l[3][i] = 0;
-  }
-	}
-	Tinv_l[3][3] = 1;
-
- double objTrans[4][4];
+ // Getting transpose of matrix 
+ double obj_T[4][4];
 
  for(int i= 0 ; i < 4 ; i++){
   for(int j = 0; j< 4; j++){
-    objTrans[i][j] = obj->Tinv[j][i];
+    obj_T[i][j] = obj->Tinv[j][i];
   }
  }
+ 
+ // Applying transformation
+ matVecMult(obj_T, n_transformed);
 
- matVecMult(objTrans, n_transformed);
+ // Normalize normal! 
  normalize(n_transformed);
  n_transformed->pw = 1;
-
 }
 
 /////////////////////////////////////////////
@@ -314,7 +313,7 @@ void planeIntersect(struct object3D *plane, struct ray3D *ray, double *lambda, s
  /////////////////////////////////
  // TO DO: Complete this function.
  /////////////////////////////////
- // clone of the ray to avoid modifying original
+ // Clone of the ray to avoid modifying original
  struct ray3D rayclone;
  struct point3D origin;
  struct point3D og_n;
@@ -327,124 +326,131 @@ void planeIntersect(struct object3D *plane, struct ray3D *ray, double *lambda, s
  // Normal Vector
  og_n.px = 0; og_n.py = 0; og_n.pz = 1; og_n.pw = 1;
 
- // intersection point
-	struct point3D intersection;
-
+ // Intersection point
+ struct point3D intersection;
+ 
+ // Transform the ray wrt plane's transformations
  rayTransform(ray, &rayclone, plane);
+
  //p-a stored in origin
  subVectors(&rayclone.p0, &origin);
  *lambda = dot(&origin, &og_n)/dot(&rayclone.d, &og_n);
- // update the ray's position
+
+ // Update the ray's intersection
  rayPosition(&rayclone,*lambda, &intersection);
 
- // check if modified pos in plane
+ // Check if modified intersection in plane
  if(abs(intersection.px) >= 1 || abs(intersection.py) >= 1){
   *lambda = -1;
-		return;
+	return;
  }
 
- 
+ // IF INTERSECTION IN VIEW PLANE?
+ // Plane is in view plane
  if(*lambda > 0){
-  //plane is in the viewplane
+  // Set normal wrt plane
   normalTransform(&og_n, n, plane);
   normalize(n);
-		*a = (intersection.px + 1) /2;
-		*b = (intersection.py + 1) /2;
-  rayPosition(ray,*lambda,p);
-  
-  }
- else{
-  // plane is not in the viewplane
-  *lambda = -1;
-		*a = -1;
-		*b = -1;
-  }
 
+  // Set a and b wrt plane
+	*a = (intersection.px + 1) /2;
+	*b = (intersection.py + 1) /2;
+
+  // Update ray position wrt found lambda
+  rayPosition(ray,*lambda, p);
+ }
+ // Plane is not in the viewplane
+ else{
+  *lambda = -1;
+  *a = -1;
+  *b = -1;
+ }
 }
 
 void sphereIntersect(struct object3D *sphere, struct ray3D *ray, double *lambda, struct point3D *p, struct point3D *n, double *a, double *b)
 {
- // Computes and returns the value of 'lambda' at the intersection
- // between the specified ray and the specified canonical sphere.
+// Computes and returns the value of 'lambda' at the intersection
+// between the specified ray and the specified canonical sphere.
 
- /////////////////////////////////
- // TO DO: Complete this function.
- /////////////////////////////////
-	*lambda = -1;
-	// clone of the ray to avoid modifying original
-	struct ray3D rayclone;
-	struct point3D origin;
-	struct point3D aminusc;
-	struct point3D og_n;
-	og_n.px = 0; og_n.py = 0; og_n.pz = 0; og_n.pw = 1;
-	origin.px = 0; origin.py = 0; origin.pz = 0; origin.pw = 1;
+/////////////////////////////////
+// TO DO: Complete this function.
+/////////////////////////////////
 
-	aminusc = ray->p0;
-	rayclone.p0 = ray->p0;
-	rayclone.d = ray->d;
-	rayTransform(ray, &rayclone, sphere);
+// Initialize lambda
+*lambda = -1;
 
-//double A = dot(&rayclone.d,&rayclone.d);
+// Set normal 
+struct point3D og_n;
+og_n.px = 0; og_n.py = 0; og_n.pz = 0; og_n.pw = 1;
 
+// Set origin 
+struct point3D origin;
+origin.px = 0; origin.py = 0; origin.pz = 0; origin.pw = 1;
 
-subVectors(&origin, &aminusc);
+// Clone of the ray to avoid modifying original
+struct ray3D rayclone;
+rayclone.p0 = ray->p0;
+rayclone.d = ray->d;
 
+// Transform ray wrt sphere's transformation
+rayTransform(ray, &rayclone, sphere);
+
+// Set variables for quadratic formula
 double A = dot(&rayclone.d,&rayclone.d);
-//subVectors(&ray->p0,&origin);
 double B = dot(&rayclone.p0,&rayclone.d);
 double C = dot(&rayclone.p0,&rayclone.p0)-1;
 double disc = pow(B,2)-(A*C);
 
+// No solutions
 if(disc < 0){
- printf("disc is : %f There are NO solutions", disc);
- *lambda = -1;
+  *lambda = -1;
 	return;
 }
+// One solution
 else if(disc == 0){
- printf("disc is : %f There is 1 solution", disc);
- *lambda = ((-1)*B + sqrt(disc))/A;
+  *lambda = ((-1)*B + sqrt(disc))/A;
 }
+// Two solutions
 else if(disc > 0){
+  // Setting lambda1 and lambda2
   double lambda1 = ((-1)*B + sqrt(disc))/A;
-  double lambda2 = ((-1)*B - sqrt(disc))/A;;  
+  double lambda2 = ((-1)*B - sqrt(disc))/A;
+
+  // Checking is lambda is in viewplane 
+  // Assigning smallest lambda
   if(lambda1 < 0 && lambda2 < 0){
-    printf("both intersections behind view plane & not visible");
     *lambda = -1;
   }
   else if(lambda1 > 0 && lambda2 < 0){
-    printf("p lambda1 is visible p lambda 2 is not");
     *lambda = lambda1;
   }
   else if(lambda1 < 0 && lambda2 > 0){
-    printf("p lambda2 is visible p lambda1 is not");
     *lambda = lambda2;
   }
-  // (lambda1 > 0 && lambda2 > 0)
-else{
-  printf("both intersections infront view plane & p lambda 2 closest");
-  *lambda = ((lambda1 < lambda2)? (lambda1):(lambda2));
- }
+  else{
+    *lambda = ((lambda1 < lambda2)? (lambda1):(lambda2));
+  }
 }
+
+ // If assigned lambda is valid
  if(*lambda > 0){
- 
-		rayPosition(ray,*lambda,p);
-		rayPosition(&rayclone, *lambda, &og_n);
-		og_n.px = og_n.px * 2;
-  og_n.py = og_n.py * 2;
-  og_n.pz = og_n.pz * 2;
-  og_n.pw = 1;
-		// Normal
-  normalTransform(&og_n, n, sphere);
-  normalize(n);
-	
-		*a = acos(p->pz)/(2*PI);
-		*b = (atan(p->py/p->px)+PI/2)/PI;
- }
-	else{
-		*lambda = -1;
-  *a = -1;
-		*b = -1;
-	}
+   // Update ray position wrt new lambda
+   rayPosition(ray, *lambda, p);
+   rayPosition(&rayclone, *lambda, &og_n);
+
+   // Normalizing and setting normal
+   normalTransform(&og_n, n, sphere);
+   normalize(n);
+
+   // Setting a and b
+   *a = acos(p->pz)/(2*PI);
+   *b = (atan(p->py/p->px)+PI/2)/PI;
+  }
+ else{
+   *lambda = -1;
+   *a = -1;
+   *b = -1;
+  }
 }
 
 void cylIntersect(struct object3D *cylinder, struct ray3D *r, double *lambda, struct point3D *p, struct point3D *n, double *a, double *b)
@@ -468,11 +474,11 @@ void cylIntersect(struct object3D *cylinder, struct ray3D *r, double *lambda, st
  // Normal Vector
  circ_norm.px = 0; circ_norm.py = 0; circ_norm.pz = 0; circ_norm.pw = 1;
 
- //Transform the ray wrt the cylinder
+ // Transform the ray wrt the cylinder
  rayTransform(r, &rayclone, cylinder);
 
- //FINDING INTERSECTION W QUADRATIC WALL (unit circles st z is in the range)
- //Using quadratic formula
+ // FINDING INTERSECTION W QUADRATIC WALL (unit circles st z is in the range)
+ // Using quadratic formula
  double A = pow(rayclone.d.px,2) + pow(rayclone.d.py,2);
  double B = rayclone.p0.px*rayclone.d.px + rayclone.p0.py*rayclone.d.py;
  double C = pow(rayclone.p0.px, 2) + pow(rayclone.p0.py, 2) - 1;
@@ -480,49 +486,49 @@ void cylIntersect(struct object3D *cylinder, struct ray3D *r, double *lambda, st
 
  struct point3D intersected;
  double z; double opt_lambda; double lambda1; double lambda2;
- //Checking number of solutions using discriminant
- if (disc > 0){// TWO SOLUTIONS
+ // Checking number of solutions using discriminant
+ // TWO SOLUTIONS
+ if (disc > 0){
   lambda1 = ((-1)*B + sqrt(disc))/A;
   lambda2 = ((-1)*B - sqrt(disc))/A;
   
-  //check if z for lambda 1 is within the height of unit cyl
+  // Check if z for lambda 1 is within the height of unit cyl
   z = rayclone.p0.pz + lambda1*rayclone.d.pz;
   if(z <= 1 && z >=0 && lambda1 > 0){//if height is valid and we're in viewplane
-   //see if this is the smallest lambda
-   //or if lambda hasn't been assigned
+   // See if this is the smallest lambda
+   // Or if lambda hasn't been assigned
    if((lambda1 < *lambda) || (*lambda == -1)){
      *lambda = lambda1;
-   }
-		}
-		//check if z for lambda 2 is within the height of unit cyl
+    }
+	 }
+		// Check if z for lambda 2 is within the height of unit cyl
   z = rayclone.p0.pz + lambda2*rayclone.d.pz;
   if(z <= 1 && z >=0 && lambda2 > 0){//if height is valid and we're in viewplane
-   //see if this is the smallest lambda in comparison to 1
-   //or if lambda hasn't been assigned
+   // See if this is the smallest lambda in comparison to 1
+   // Or if lambda hasn't been assigned
    if((lambda2 < *lambda) || (*lambda == -1)){ 
      *lambda = lambda2;
    }
   }
  }
- else if(disc == 0){// ONE SOLUTION
+ // ONE SOLUTION
+ else if(disc == 0){
   opt_lambda= (-1*B + disc)/(A); 
   
-  //check if z for opt_lambda is within the height of unit cyl
+  // Check if z for opt_lambda is within the height of unit cyl
   z = rayclone.p0.pz + opt_lambda*rayclone.d.pz;
   if(z <= 1 && z >=0 && opt_lambda > 0){//if height is valid and we're in viewplane
-   //see if this is the smallest lambda
-   //or if lambda hasn't been assigned
+   // See if this is the smallest lambda
+   // Or if lambda hasn't been assigned
    if((opt_lambda < *lambda) || (*lambda == -1)){
      *lambda = opt_lambda;
    }
   }
- } //Otherwsie NO SOLUTIONS so lambda stays -1
+ } // Otherwsie NO SOLUTIONS so lambda stays -1
 
- //FIND INTERSECTION BETWEEN BASES OF CYL (plane st z = 0 or 1)
- //Declaring necessary objects
- struct point3D origin;
- struct point3D og_n;
- struct point3D intersection;
+ // FIND INTERSECTION BETWEEN BASES OF CYL (plane st z = 0 or 1)
+ // Declaring necessary objects
+ struct point3D origin, og_n, intersection;
 
  // Origin
  origin.px = 0; origin.py = 0; origin.pz = 0; origin.pw = 1;
@@ -530,58 +536,64 @@ void cylIntersect(struct object3D *cylinder, struct ray3D *r, double *lambda, st
  // Normal Vector
  og_n.px = 0; og_n.py = 0; og_n.pz = 1; og_n.pw = 1;
 
- //plane points (z = 0 or 1)
+ // Plane points (z = 0 or 1)
  struct point3D plane1;
- plane1.px = 0;plane1.py=0;plane1.pz=1;plane1.pw=1;
+ plane1.px = 0; plane1.py=0; plane1.pz=1; plane1.pw=1;
  struct point3D plane2;
- plane2.px = 0;plane2.py=0;plane2.pz=0;plane2.pw=1;
+ plane2.px = 0; plane2.py=0; plane2.pz=0; plane2.pw=1;
 
- //CHECK INTERSECTION FOR PLANE 1
- //p-a stored for the first plane
+ // CHECK INTERSECTION FOR PLANE 1
+ // p-a stored for the first plane
  subVectors(&rayclone.p0, &plane1);
  lambda1 = dot(&plane1, &og_n)/dot(&r->d, &og_n);
- // update the ray's position according to lambda of first plane
+ // Update the ray's position according to lambda of first plane
  rayPosition(&rayclone,lambda1,&intersection);
 
- // check if modified pos in circular plane: if x^2 + y^2 <= 1
+ // Check if modified pos in circular plane: if x^2 + y^2 <= 1
  if(pow(intersection.px, 2) + pow(intersection.py, 2) <= 1){
-  //see if this is the smallest lambda
-  //or if lambda hasn't been assigned
+  // See if this is the smallest lambda
+  // Or if lambda hasn't been assigned
   if((lambda1 < *lambda) || (*lambda == -1)){ 
     *lambda = lambda1;
    }
  }
 
- //CHECK INTERSECTION FOR PLANE 2
- //p-a stored for the second plane
+ // CHECK INTERSECTION FOR PLANE 2
+ // p-a stored for the second plane
  subVectors(&rayclone.p0, &plane2);
  lambda2 = dot(&plane2, &og_n)/dot(&r->d, &og_n);
- // update the ray's position according to lambda of first plane
+ // Update the ray's position according to lambda of first plane
  rayPosition(&rayclone,lambda2,&intersection);
 
- // check if modified pos in circular plane: if x^2 + y^2 <= 1
+ // Check if modified pos in circular plane: if x^2 + y^2 <= 1
  if(pow(intersection.px, 2) + pow(intersection.py, 2) <= 1){
-  //see if this is the smallest lambda
-  //or if lambda hasn't been assigned
+  // See if this is the smallest lambda
+  // Or if lambda hasn't been assigned
   if((lambda2 < *lambda) || (*lambda == -1)){ 
     *lambda = lambda2;
    }
  }
 
- //CHECKING IF FINAL LAMBDA IN VIEW PLANE
+ // CHECKING IF FINAL LAMBDA IN VIEW PLANE
  if(*lambda > 0){
-  //plane is in the viewplane
-  rayPosition(&rayclone,*lambda,&intersection); //update position due to smallest lambda
-  normalTransform(&og_n, n, cylinder); //update normal
+  // Plane is in the viewplane
+
+  // Update position due to smallest lambda
+  rayPosition(&rayclone,*lambda,&intersection);
+
+  // Update normal
+  normalTransform(&og_n, n, cylinder);
+
+  // Setting a and b
   *a = (atan(intersection.py/intersection.px)+PI/2)/PI;
-  *b = intersection.pz; // corresponding to z that we are dealing with
+  *b = intersection.pz; 
   }
  else{
   // plane is not in the viewplane
   *lambda = -1;
-		*a = -1;
-		*b = -1;
-  }
+	*a = -1;
+	*b = -1;
+ }
 }
 
 /////////////////////////////////////////////////////////////////
@@ -1218,70 +1230,18 @@ void nullSetupView(struct view *c, struct point3D *e, struct point3D *g, struct 
    f - focal length
  */
 
+ // Setting up camera to world matrix for the camera
+ c->C2W[0][0]=u.px; c->C2W[1][0]=u.py; c->C2W[2][0]=u.pz; c->C2W[3][0]=0;
+ c->C2W[0][1]=v.px; c->C2W[1][1]=v.py; c->C2W[2][1]=v.pz; c->C2W[3][1]=0;
+ c->C2W[0][2]=w.px; c->C2W[1][2]=w.py; c->C2W[2][2]=w.pz; c->C2W[3][2]=0;
+ c->C2W[0][3]=e->px; c->C2W[1][3]=e->py; c->C2W[2][3]=e->pz; c->C2W[3][3]=1;
 
-
- // Set up coordinate conversion matrices
- // Camera2World matrix (M_cw in the notes)
- // Mind the indexing convention [row][col]
- c->C2W[0][0]=u.px;
- c->C2W[1][0]=u.py;
- c->C2W[2][0]=u.pz;
- c->C2W[3][0]=0;
-
- c->C2W[0][1]=v.px;
- c->C2W[1][1]=v.py;
- c->C2W[2][1]=v.pz;
- c->C2W[3][1]=0;
-
- c->C2W[0][2]=w.px;
- c->C2W[1][2]=w.py;
- c->C2W[2][2]=w.pz;
- c->C2W[3][2]=0;
-
- c->C2W[0][3]=e->px;
- c->C2W[1][3]=e->py;
- c->C2W[2][3]=e->pz;
- c->C2W[3][3]=1;
-
+ // Setting up world to camera matrix by transposing about with e 
  double mwc[4][4];
-	mwc[0][0] = u.px;
-	mwc[1][0] = v.px;
-	mwc[2][0] = w.px;
-	mwc[3][0] = 0;
-	mwc[0][1] = u.py;
-	mwc[1][1] = v.py;
-	mwc[2][1] = w.py;
-	mwc[3][1] = 0;
-	mwc[0][2] = u.pz;
-	mwc[1][2] = v.pz;
-	mwc[2][2] = w.pz;
-	mwc[3][2] = 0;
-	mwc[0][3] = 0;
-	mwc[1][3] = 0;
-	mwc[2][3] = 0;
-	mwc[3][3] = 1;
-
-c->W2C[0][0] = 1;
-c->W2C[1][0] = 0;
-c->W2C[2][0] = 0;
-c->W2C[3][0] = 0;
-
-c->W2C[0][1] = 0;
-c->W2C[1][1] = 1;
-c->W2C[2][1] = 0;
-c->W2C[3][1] = 0;
-
-c->W2C[0][2] = 0;
-c->W2C[1][2] = 0;
-c->W2C[2][2] = 1;
-c->W2C[3][2] = 0;
-
-c->W2C[0][3] = -e->px;
-c->W2C[1][3] = -e->py;
-c->W2C[2][3] = -e->pz;
-c->W2C[3][3] = 1;
-
-matMult(mwc, c->W2C);
+ c->W2C[0][0] = u.px; c->W2C[1][0] = v.px; c->W2C[2][0] = w.px; c->W2C[3][0] = 0;
+ c->W2C[0][1] = u.py; c->W2C[1][1] = v.py; c->W2C[2][1] = w.py; c->W2C[3][1] = 0;
+ c->W2C[0][2] = u.pz; c->W2C[1][2] = v.pz; c->W2C[2][2] = w.pz; c->W2C[3][2] = 0;
+ c->W2C[0][3] = -e->px; c->W2C[1][3] = -e->py; c->W2C[2][3] = -e->pz; c->W2C[3][3] = 1;
 }
 
 /////////////////////////////////////////
