@@ -210,7 +210,7 @@ void addAreaLight(double sx, double sy, double nx, double ny, double nz,\
 // Function to set up the camera and viewing coordinate frame.
 // You will have to add code to this function's body in utils.c
 struct view *setupView(struct point3D *e, struct point3D *g, struct point3D *up, double f, double wl, double wt, double wsize);
-
+void nullSetupView(struct view *c, struct point3D *e, struct point3D *g, struct point3D *up, struct point3D u, struct point3D v, struct point3D w);
 // Image management output. Note that you will need to free() any images you
 // allocate with newImage() using deleteImage().
 struct image *readPPMimage(const char *filename);

@@ -98,148 +98,7 @@ void rtShade(struct object3D *obj, struct point3D *p, struct point3D *n, struct 
 
  // Be sure to update 'col' with the final colour computed here!
 // shadow ray
- struct point3D mirrorReflectionLS;
-  struct point3D mirrorReflectionRay;
-  struct point3D vectorLS;
-  struct ray3D rayLS;
-  struct point3D toCamera;
-  struct pointLS *currentLightSource = light_list;  
-  struct ray3D reflectedRay;
-  struct ray3D cameraRay;
-  double lambda;
-
-
-  // Compute the c vector going to camera which is the opposite direction of ray
-  toCamera.px = -(ray->d.px);
-  toCamera.py = -(ray->d.py);
-  toCamera.pz = -(ray->d.pz);
-  toCamera.pw = 1;
-
-  normalize(&toCamera);
-  initRay(&cameraRay, p, &toCamera);
-
-  // Make iterator variable to loop through all the lightsources
-  struct pointLS *lightsource_iterator = light_list;
-
-  // Loop through all the lightsources
-  while(lightsource_iterator != NULL){
-
-    // Need to make the s vector
-    vectorLS = lightsource_iterator->p0;
-    subVectors(p, &vectorLS);
-    normalize(&vectorLS);
-    // From the newly made light source vector make the light source ray
-    initRay(&rayLS, p, &vectorLS);
-    findFirstHit(&rayLS, &lambda, obj, &obj, p, n, &a, &b);
-    // Compute the ambient term ra*Ia from Phong
-    tmp_col.R += obj->alb.ra * R;
-    tmp_col.G += obj->alb.ra * G;
-    tmp_col.B += obj->alb.ra * B;
-
-    if(0 < lambda && lambda < 1){
-      //If lambda is between 0 and 1 we only need the
-      //ambient term
-
-      //Compute the ambient term ra*Ia from Phong
-      tmp_col.R += 1; // obj->alb.ra * R;
-      tmp_col.G += 1; //obj->alb.ra * G;
-      tmp_col.B += 1;// obj->alb.ra * B;
-
-      //Also need to accomodate the previous ray traced lighting rg*Ispec
-      tmp_col.R += obj->alb.rg*col->R;
-      tmp_col.G += obj->alb.rg*col->G;
-      tmp_col.B += obj->alb.rg*col->B;
-
-    }
-    else{
-      // If lambda is greater then we compute and
-      // use the entire Phong model
-
-      // Compute the ambient term ra*Ia from Phong
-      tmp_col.R += obj->alb.ra * R;
-      tmp_col.G += obj->alb.ra * G;
-      tmp_col.B += obj->alb.ra * B;
-
-      // Compute the dot product for the surface normal and the lightsource
-      double norm_ls_dot = dot(n, &rayLS.d);
-
-      // Compute diffuse term rd*Id*max(0, n*s)
-      tmp_col.R += obj->alb.rd * R * lightsource_iterator->col.R * max(0, norm_ls_dot);
-      tmp_col.G += obj->alb.rd * G * lightsource_iterator->col.G * max(0, norm_ls_dot);
-      tmp_col.B += obj->alb.rd * B * lightsource_iterator->col.B * max(0, norm_ls_dot);
-
-
-      // Compute the perfect mirror reflection of the lightsource
-      // m = 2(s*n)n - s
-      mirrorReflectionLS.px = 2*(dot(n, &rayLS.d))*n->px - rayLS.d.px;
-      mirrorReflectionLS.py = 2*(dot(n, &rayLS.d))*n->py - rayLS.d.py;
-      mirrorReflectionLS.pz = 2*(dot(n, &rayLS.d))*n->pz - rayLS.d.pz;
-      normalize(&mirrorReflectionLS);
-
-      // Compute dot product for the camera and the mirror reflection ray
-      double cam_mirror_dot = dot(&mirrorReflectionLS, &toCamera);
-
-      // Compute the specular term rs*Is*max(0, c*m)^alpha (alpha is shinyness here)
-      tmp_col.R += obj->alb.rs * R * lightsource_iterator->col.R * pow(max(0, cam_mirror_dot),obj->shinyness);
-      tmp_col.G += obj->alb.rs * G * lightsource_iterator->col.R * pow(max(0, cam_mirror_dot),obj->shinyness);
-      tmp_col.B += obj->alb.rs * B * lightsource_iterator->col.R * pow(max(0, cam_mirror_dot),obj->shinyness);
-
-      // Also need to accomodate the previous ray traced lighting rg*Ispec
-      tmp_col.R += obj->alb.rg*col->R;
-      tmp_col.G += obj->alb.rg*col->G;
-      tmp_col.B += obj->alb.rg*col->B;
-    }
-    //Compute the global components
-    if(depth < MAX_DEPTH){
-
-
-      //Check if object has specular components
-      if(obj->alb.rs != 0){
-
-        //Calculate the mirror direction according to the formula
-        //ms = -d + 2(n*d)n
-        double norm_ray_dot = dot(n, &ray->d);
-        struct colourRGB specularCol;
-
-        mirrorReflectionRay.px = -ray->d.px + 2*(norm_ray_dot)*n->px;
-        mirrorReflectionRay.py = -ray->d.py + 2*(norm_ray_dot)*n->py;
-        mirrorReflectionRay.pz = -ray->d.pz + 2*(norm_ray_dot)*n->pz;
-
-        // Make the reflected ray and trace this one
-        initRay(&reflectedRay, p, &mirrorReflectionRay);
-        rayTrace(&reflectedRay, depth + 1, &specularCol, obj);
-
-        // Updating the Ispec term
-        tmp_col.R += obj->alb.rg * specularCol.R;
-        tmp_col.G += obj->alb.rg * specularCol.G;
-        tmp_col.B += obj->alb.rg * specularCol.B;
-
-      }
-      // // Check if the object is refractive
-      // if (obj->alpha < 1){
-
-
-      //   // Call ray trace
-      //   // rayTrace()
-      //   break;
-
-      // }
-
-
-   }
-    lightsource_iterator = lightsource_iterator->next;
-  }
-
- // Be sure to update 'col' with the final colour computed here!
- 
- // When setting the components cap it at 1 if they are above 1
-
- col->R = (tmp_col.R > 1) ? 1 : tmp_col.R;
- col->G = (tmp_col.G > 1) ? 1 : tmp_col.G;
- col->B = (tmp_col.B > 1) ? 1 : tmp_col.B;
-
- return;
- /* struct ray3D shadow_ray;
+ struct ray3D shadow_ray;
  initRay(&shadow_ray, &ray->p0, &ray->d);
  // ray from p to lightsource 
  struct ray3D LS_ray;
@@ -290,9 +149,13 @@ void rtShade(struct object3D *obj, struct point3D *p, struct point3D *n, struct 
     m.py = 2*dot(n, &s)*n->py - s.py;
     m.pz = 2*dot(n, &s)*n->pz - s.pz;  
  }
- return; */
+
+
+ return;
 
 }
+
+
 
 void findFirstHit(struct ray3D *ray, double *lambda, struct object3D *Os, struct object3D **obj, struct point3D *p, struct point3D *n, double *a, double *b)
 {
@@ -314,9 +177,10 @@ void findFirstHit(struct ray3D *ray, double *lambda, struct object3D *Os, struct
  //Set lambda to be -1 for no hits default
  *lambda = -1;
  struct point3D intersection;
- struct point3D norm;
- double temp_lambda;
 
+ struct point3D norm;
+ double temp_lambda = *lambda;
+ double smallest_lambda = 10000;
  //Copy current object
  struct object3D *obj_clone = object_list;
 
@@ -324,27 +188,23 @@ void findFirstHit(struct ray3D *ray, double *lambda, struct object3D *Os, struct
  while(obj_clone != NULL){
   //If we're dealing with a new and diff object that our current
   if(obj_clone != Os){ 
-   obj_clone->intersect(obj_clone, ray, &temp_lambda, &intersection, &norm, a, b);
+   (*obj_clone->intersect)(obj_clone, ray, &temp_lambda, p, n, a, b);
 
-   //if temp lambda was set through the intersection
-   if (temp_lambda != -1){ 
+    //if temp lambda was set through the intersection
     //if current lambda has not been set or temp lambda is better
-     if ((*lambda == -1) || (temp_lambda < *lambda)){ 
-       //Set values
-       *p = intersection;
-       *n = norm;
-       *lambda = temp_lambda;
-       *obj = obj_clone;
-      }
-   }
-
-   //Go to next object in linked list
-   obj_clone = obj_clone->next;
-
+    if ( (temp_lambda > 0) && (temp_lambda < smallest_lambda)){ 
+      //Set values
+      intersection = *p;
+      norm = *n;
+      smallest_lambda = temp_lambda;
+      *lambda = temp_lambda;
+      *obj = obj_clone;
+    }
   }
+  //Go to next object in linked list
+   obj_clone = obj_clone->next;
  }
 }
-
 void rayTrace(struct ray3D *ray, int depth, struct colourRGB *col, struct object3D *Os)
 {
  // Trace one ray through the scene.
@@ -547,33 +407,84 @@ int main(int argc, char *argv[])
     //         raytracing!
     ///////////////////////////////////////////////////////////////////
    //Set up the pixels coordinates
-   pc.pz = cam->wl + du *i;
-   pc.py = cam->wt + dv *j;
-   pc.pz = cam->f;
-   pc.pw = 1;
+  struct point3D u, w, v;
+	struct point3D *t;
+	// finding w vector:
+	double norm_g = sqrt(pow(g.px,2) + pow(g.py,2) + pow(g.pz,2));
+	w.px = (-g.px)/norm_g; w.py = (-g.py)/norm_g; w.pz = (-g.pz)/norm_g; w.pw = 0;
+	// finding u vector:
+	t = cross(&up, &w);
+	double norm_t = sqrt(pow(t->px,2) + pow(t->py,2) + pow(t->pz,2));
+	u.px = t->px / norm_t; u.py = t->py / norm_t; u.pz = t->pz / norm_t; u.pw = 0;
+	struct point3D *wcrossu;
+	wcrossu = cross(&w, &u);
+	v.px = wcrossu->px;
+	v.py = wcrossu->py;
+	v.pz = wcrossu->pz;
+	v.pw = 0;
+
+  double mcw[4][4];
+  mcw[0][0] = u.px;
+  mcw[1][0] = u.py;
+  mcw[2][0] = u.pz;
+  mcw[3][0] = 0;
+  mcw[0][1] = v.px;
+  mcw[1][1] = v.py;
+  mcw[2][1] = v.pz;
+  mcw[3][1] = 0;
+  mcw[0][2] = w.px;
+  mcw[1][2] = w.py;
+  mcw[2][2] = w.pz;
+  mcw[3][2] = 0;
+  mcw[0][3] = 0;
+  mcw[1][3] = 0;
+  mcw[2][3] = 0;
+  mcw[3][3] = 1;
+  nullSetupView(cam, &e, &g, &up, u, v, w);
+   
+
+  struct point3D point_coord;
+   point_coord.px = cam->wl + du *i;
+   point_coord.py = cam->wt + dv *j;
+   point_coord.pz = -1;
+   point_coord.pw = 1;
 
    //Convert local pixel coordinate to world coordinate
-   matVecMult(cam->C2W, &pc);
-
+   matVecMult(mcw, &point_coord);
+   addVectors(&e, &point_coord);
+   point_coord.pw = 1;
    //Assign direction vector for pixel 
-   d.px = pc.px;
-   d.py = pc.py;
-   d.pz = pc.pz;
-   d.pw = 1;
+   struct point3D dir;
+   dir.px = point_coord.px;
+   dir.py = point_coord.py;
+   dir.pz = point_coord.pz;
+   dir.pw = 1;
 
    //Subtract e and d to make d the direction based on pixel originally and the axis
-   subVectors(&e, &d);
-   normalize(&d);
-   struct ray3D ray;
+   subVectors(&e, &dir);
+   dir.pw = 1;
+   normalize(&dir);
+  
+   struct ray3D new_ray;
   
    //Setting up ray
-   initRay(&ray,&pc, &d);
-   
+   initRay(&new_ray,&point_coord, &dir);
    //trace ray
-   struct object3D obj;
-   col = background;
-   rayTrace(&ray, 0, &col,&obj);
+   
+   col.R = background.R;
+   col.G = background.G;
+   col.B = background.B;
+   rayTrace(&new_ray, 1, &col,NULL);
 
+    // check!
+    unsigned char val_r = (unsigned char)(col.R * 255);
+    unsigned char val_g = (unsigned char)(col.G * 255);
+    unsigned char val_b = (unsigned char)(col.B * 255);
+    unsigned char col_val_arr[3] = {val_r, val_g, val_b};
+
+    rgbIm[3*(j*im->sx + (im->sx - i)) + 0] = val_r;
+    rgbIm[3*(j*im->sx + (im->sx - i)) + 1] = val_g;
+    rgbIm[3*(j*im->sx + (im->sx - i)) + 2] = val_b;
   } // end for i
  } // end for j
 
@@ -588,4 +499,7 @@ int main(int argc, char *argv[])
  free(cam);						// camera view
  exit(0);
 }
+
+
+
 

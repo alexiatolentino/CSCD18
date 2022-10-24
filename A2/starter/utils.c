@@ -1205,6 +1205,85 @@ struct view *setupView(struct point3D *e, struct point3D *g, struct point3D *up,
  return(c);
 }
 
+// helper function to set up view if cam is null
+void nullSetupView(struct view *c, struct point3D *e, struct point3D *g, struct point3D *up, struct point3D u, struct point3D v, struct point3D w)
+{
+ /*
+   This function sets up the camera axes and viewing direction as discussed in the
+   lecture notes.
+   e - Camera center
+   g - Gaze direction
+   up - Up vector
+   fov - Fild of view in degrees
+   f - focal length
+ */
+
+
+
+ // Set up coordinate conversion matrices
+ // Camera2World matrix (M_cw in the notes)
+ // Mind the indexing convention [row][col]
+ c->C2W[0][0]=u.px;
+ c->C2W[1][0]=u.py;
+ c->C2W[2][0]=u.pz;
+ c->C2W[3][0]=0;
+
+ c->C2W[0][1]=v.px;
+ c->C2W[1][1]=v.py;
+ c->C2W[2][1]=v.pz;
+ c->C2W[3][1]=0;
+
+ c->C2W[0][2]=w.px;
+ c->C2W[1][2]=w.py;
+ c->C2W[2][2]=w.pz;
+ c->C2W[3][2]=0;
+
+ c->C2W[0][3]=e->px;
+ c->C2W[1][3]=e->py;
+ c->C2W[2][3]=e->pz;
+ c->C2W[3][3]=1;
+
+ double mwc[4][4];
+	mwc[0][0] = u.px;
+	mwc[1][0] = v.px;
+	mwc[2][0] = w.px;
+	mwc[3][0] = 0;
+	mwc[0][1] = u.py;
+	mwc[1][1] = v.py;
+	mwc[2][1] = w.py;
+	mwc[3][1] = 0;
+	mwc[0][2] = u.pz;
+	mwc[1][2] = v.pz;
+	mwc[2][2] = w.pz;
+	mwc[3][2] = 0;
+	mwc[0][3] = 0;
+	mwc[1][3] = 0;
+	mwc[2][3] = 0;
+	mwc[3][3] = 1;
+
+c->W2C[0][0] = 1;
+c->W2C[1][0] = 0;
+c->W2C[2][0] = 0;
+c->W2C[3][0] = 0;
+
+c->W2C[0][1] = 0;
+c->W2C[1][1] = 1;
+c->W2C[2][1] = 0;
+c->W2C[3][1] = 0;
+
+c->W2C[0][2] = 0;
+c->W2C[1][2] = 0;
+c->W2C[2][2] = 1;
+c->W2C[3][2] = 0;
+
+c->W2C[0][3] = -e->px;
+c->W2C[1][3] = -e->py;
+c->W2C[2][3] = -e->pz;
+c->W2C[3][3] = 1;
+
+matMult(mwc, c->W2C);
+}
+
 /////////////////////////////////////////
 // Image I/O section
 /////////////////////////////////////////
