@@ -96,11 +96,21 @@ inline void rayTransform(struct ray3D *ray_orig, struct ray3D *ray_transformed, 
  ///////////////////////////////////////////
  // TO DO: Complete this function
  ///////////////////////////////////////////
- 
+
  ray_transformed->p0 = ray_orig->p0;
  ray_transformed->d = ray_orig->d;
  matVecMult(obj->Tinv, &ray_transformed->p0);
- matVecMult(obj->Tinv, &ray_transformed->d);
+	double Tinv_l[4][4];
+ for (int i = 0; i < 3; i++){
+			for (int j = 0; j < 3; j++) {
+    Tinv_l[i][j] = obj->Tinv[i][j];
+    Tinv_l[i][3] = 0;
+    Tinv_l[3][i] = 0;
+  }
+	}
+	Tinv_l[3][3] = 1;
+	
+ matVecMult(Tinv_l, &ray_transformed->d);
 }
 inline void normalTransform(struct point3D *n_orig, struct point3D *n_transformed, struct object3D *obj)
 {
@@ -113,6 +123,16 @@ inline void normalTransform(struct point3D *n_orig, struct point3D *n_transforme
  ///////////////////////////////////////////
  *n_transformed = *n_orig;
 
+	double Tinv_l[4][4];
+ for (int i = 0; i < 3; i++){
+			for (int j = 0; j < 3; j++) {
+    Tinv_l[i][j] = obj->Tinv[i][j];
+    Tinv_l[i][3] = 0;
+    Tinv_l[3][i] = 0;
+  }
+	}
+	Tinv_l[3][3] = 1;
+
  double objTrans[4][4];
 
  for(int i= 0 ; i < 4 ; i++){
@@ -120,6 +140,7 @@ inline void normalTransform(struct point3D *n_orig, struct point3D *n_transforme
     objTrans[i][j] = obj->Tinv[j][i];
   }
  }
+
  matVecMult(objTrans, n_transformed);
  normalize(n_transformed);
  n_transformed->pw = 1;
@@ -312,13 +333,14 @@ void planeIntersect(struct object3D *plane, struct ray3D *ray, double *lambda, s
  rayTransform(ray, &rayclone, plane);
  //p-a stored in origin
  subVectors(&rayclone.p0, &origin);
- *lambda = dot(&origin, &og_n)/dot(&ray->d, &og_n);
+ *lambda = dot(&origin, &og_n)/dot(&rayclone.d, &og_n);
  // update the ray's position
- rayPosition(ray,*lambda, &intersection);
+ rayPosition(&rayclone,*lambda, &intersection);
 
  // check if modified pos in plane
  if(abs(intersection.px) >= 1 || abs(intersection.py) >= 1){
   *lambda = -1;
+		return;
  }
 
  
@@ -369,8 +391,8 @@ subVectors(&origin, &aminusc);
 
 double A = dot(&rayclone.d,&rayclone.d);
 //subVectors(&ray->p0,&origin);
-double B = dot(&aminusc,&ray->d);
-double C = dot(&aminusc,&aminusc)-1;
+double B = dot(&rayclone.p0,&rayclone.d);
+double C = dot(&rayclone.p0,&rayclone.p0)-1;
 double disc = pow(B,2)-(A*C);
 
 if(disc < 0){
@@ -407,6 +429,10 @@ else{
  
 		rayPosition(ray,*lambda,p);
 		rayPosition(&rayclone, *lambda, &og_n);
+		og_n.px = og_n.px * 2;
+  og_n.py = og_n.py * 2;
+  og_n.pz = og_n.pz * 2;
+  og_n.pw = 1;
 		// Normal
   normalTransform(&og_n, n, sphere);
   normalize(n);
