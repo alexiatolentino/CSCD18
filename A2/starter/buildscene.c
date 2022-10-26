@@ -32,12 +32,78 @@
  // with some transformations.
 
  // Note the parameters: ra, rd, rs, rg, R, G, B, alpha, r_index, and shinyness)
-
- o=newSphere(.05,.95,.35,.35,1,.25,.25,1,1,6);		// Initialize a sphere
- Scale(o,1.5,.75,.75);					// Apply a few transforms (Translate * Rotate * Scale)
- RotateZ(o,PI/4);					
- Translate(o,2.0,2.5,1.5);
+ 
+ //HEAD OF DOG
+ //back ear
+ o=newSphere(.05,.95,.5,.5,0.63,.12,.94,1,1,6);		// Initialize a sphere
+ Scale(o,1.3,.5,.5);					// Apply a few transforms (Translate * Rotate * Scale)			
+ Translate(o,-3.9,1,2);
+ //RotateZ(o,-PI/1.49);
+ RotateZ(o,-PI/1.9);
  invert(&o->T[0][0],&o->Tinv[0][0]);			// Compute the inverse transform * DON'T FORGET TO DO THIS! *
+ insertObject(o,&object_list);
+ 
+ //front ear
+ o=newSphere(.05,.95,.5,.5,0.63,.12,.94,1,1,6);		// Initialize a sphere
+ Scale(o,1.3,.5,.5);					// Apply a few transforms (Translate * Rotate * Scale)			
+ Translate(o,-3.45,1.35,1.4);
+ RotateZ(o,-PI/1.9);
+ invert(&o->T[0][0],&o->Tinv[0][0]);			// Compute the inverse transform * DON'T FORGET TO DO THIS! *
+ insertObject(o,&object_list);
+
+
+ //neck
+ o=newSphere(.05,.95,.5,.5,0.63,.12,.94,1,1,6);		// Initialize a sphere
+ Scale(o,1.3,.5,.5);					// Apply a few transforms (Translate * Rotate * Scale)			
+ Translate(o,-1.2,1.35,1.7);
+ RotateZ(o,-PI/1.9);
+ invert(&o->T[0][0],&o->Tinv[0][0]);			// Compute the inverse transform * DON'T FORGET TO DO THIS! *
+ insertObject(o,&object_list);
+
+ 
+ //head
+ o=newSphere(.05,.95,.5,.5,0.63,.12,.94,1,1,6);		// Initialize a sphere
+ Scale(o,1.1,.5,.25);					// Apply a few transforms (Translate * Rotate * Scale)			
+ Translate(o,-2.5,-2,1.4);
+ RotateZ(o,PI);
+ invert(&o->T[0][0],&o->Tinv[0][0]);	
+ insertObject(o,&object_list);	
+
+
+ //TAIL OF DOG
+ o=newSphere(.05,.95,.5,.5,0.63,.12,.94,1,1,6);		// Initialize a sphere
+ Scale(o,1.1,.5,.25);				// Apply a few transforms (Translate * Rotate * Scale)			
+ Translate(o,1.7,2.05,0.9);
+ RotateZ(o,PI/1.5);
+ invert(&o->T[0][0],&o->Tinv[0][0]);			// Compute the inverse transform * DON'T FORGET TO DO THIS! *
+ insertObject(o,&object_list);
+
+ //body
+ o=newSphere(.05,.95,.5,.5,0.63,.12,.94,1,1,6);		// Initialize a sphere
+ Scale(o,1.7,.6,.3);					// Apply a few transforms (Translate * Rotate * Scale)			
+ Translate(o,-.1,-.4,1.2);
+ RotateY(o,-PI/20);
+ invert(&o->T[0][0],&o->Tinv[0][0]);	
+ insertObject(o,&object_list);	
+
+ o=newSphere(.05,.95,.5,.5,0.63,.12,.94,1,1,6);		// Initialize a sphere
+ Scale(o,1.3,.5,.5);
+ // Apply a few transforms (Translate * Rotate * Scale)			
+ Translate(o,2.1,1,1.4);
+ RotateZ(o,-2*PI/6);
+ invert(&o->T[0][0],&o->Tinv[0][0]);			// Compute the inverse transform * DON'T FORGET TO DO THIS! *
+ insertObject(o,&object_list);
+
+ o=newSphere(.05,.95,.5,.5,0.63,.12,.94,1,1,6);		// Initialize a sphere
+ Scale(o,1.3,.5,.5);
+ //-0.45 diff, 0.35 diff, 0.5 diff
+ // Apply a few transforms (Translate * Rotate * Scale)			
+ Translate(o,-2.7,1.3,0.9);
+ RotateZ(o,2*PI/6);
+ invert(&o->T[0][0],&o->Tinv[0][0]);			// Compute the inverse transform * DON'T FORGET TO DO THIS! *
+ insertObject(o,&object_list);
+
+
 
  // If needed, this is how you load a texture map
  // loadTexture(o,"./Texture/mosaic2.ppm",1,&texture_list);	// This loads a texture called 'mosaic2.ppm'. The
@@ -52,18 +118,12 @@
 								// way, the cleanup function already provided will do
 								// this at the end.
  
-  insertObject(o,&object_list);			// <-- If you don't insert the object into the object list,
+		// <-- If you don't insert the object into the object list,
 						//     nothing happens! your object won't be rendered.
 
  // That's it for defining a single sphere... let's add a couple more objects
- o=newSphere(.05,.95,.95,.75,.75,.95,.55,1,1,6);
- Scale(o,.95,1.65,.65);
- RotateZ(o,-PI/1.5);
- Translate(o,-2.2,1.75,1.35);
- invert(&o->T[0][0],&o->Tinv[0][0]);
- insertObject(o,&object_list);
 
- o=newPlane(.05,.75,.05,.05,.55,.8,.75,1,1,2);
+ o=newPlane(.05,.75,.05,.05,1,1,1,1,1,2);
  Scale(o,11,11,11);
  RotateZ(o,PI/4);
  RotateX(o,PI/2);
