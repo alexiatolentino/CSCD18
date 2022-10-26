@@ -126,16 +126,16 @@ for i=0:.05:12*pi
   %% corresponding to t=i from the for loop above.
 
   xa=((R+r)*cos(i))-(r*cos(((R+r)/r)*i));     % Dummy point on curve, replace with actual
-  ya=((R+r)*sin(i))-(r*sin(((R+r)/r)*i));     % location on the curve from the curve's
-  za=r*cos((R/r)*i);     % parametric equations!
+  ya=0;     % location on the curve from the curve's
+  za=0;     % parametric equations!
   
   %% Part 1 code goes just below these comments!
   %% Compute tx, ty, and tz, the components of
   %% the tangent vector
 
-  tx=-((R+r)*sin(i)) + ((R+r)*sin(((R+r)/r)*i));
-  ty=((R+r)*cos(i)) - ((R+r)*cos(((R+r)/r)*i));         % DUMMY VECTOR, replace with correct one. 
-  tz=-R*sin((R/r)*i);
+  tx=0;
+  ty=0;         % DUMMY VECTOR, replace with correct one. 
+  tz=1;
   
   tangents(end+1,:)=[tx ty tz];
 

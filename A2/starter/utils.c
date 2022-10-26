@@ -492,39 +492,86 @@ void cylIntersect(struct object3D *cylinder, struct ray3D *r, double *lambda, st
   lambda1 = ((-1)*B + sqrt(disc))/A;
   lambda2 = ((-1)*B - sqrt(disc))/A;
   
-  // Check if z for lambda 1 is within the height of unit cyl
-  z = rayclone.p0.pz + lambda1*rayclone.d.pz;
-  if(z <= 1 && z >=0 && lambda1 > 0){//if height is valid and we're in viewplane
-   // See if this is the smallest lambda
-   // Or if lambda hasn't been assigned
-   if((lambda1 < *lambda) || (*lambda == -1)){
-     *lambda = lambda1;
-    }
-	 }
-		// Check if z for lambda 2 is within the height of unit cyl
-  z = rayclone.p0.pz + lambda2*rayclone.d.pz;
-  if(z <= 1 && z >=0 && lambda2 > 0){//if height is valid and we're in viewplane
-   // See if this is the smallest lambda in comparison to 1
-   // Or if lambda hasn't been assigned
-   if((lambda2 < *lambda) || (*lambda == -1)){ 
-     *lambda = lambda2;
-   }
+
+  // Checking is lambda is in viewplane 
+  // Assigning smallest lambda
+  if(lambda1 < 0 && lambda2 < 0){
+    *lambda = -1;
   }
+  else if(lambda1 > 0 && lambda2 < 0){
+     // Check if z for lambda 1 is within the height of unit cyl
+    z = rayclone.p0.pz + lambda1*rayclone.d.pz;
+    if(abs(z) <= 1 && lambda1 > 0){//if height is valid and we're in viewplane
+    // See if this is the smallest lambda
+    // Or if lambda hasn't been assigned
+      if((lambda1 < *lambda) || (*lambda == -1)){
+        *lambda = lambda1;
+        }
+    }
+  }
+  else if(lambda1 < 0 && lambda2 > 0){
+    // Check if z for lambda 2 is within the height of unit cyl
+    z = rayclone.p0.pz + lambda2*rayclone.d.pz;
+    if(abs(z) <= 1 && lambda2 > 0){//if height is valid and we're in viewplane
+    // See if this is the smallest lambda in comparison to 1
+    // Or if lambda hasn't been assigned
+      if((lambda2 < *lambda) || (*lambda == -1)){ 
+        *lambda = lambda2;
+      }
+    }
+  }
+  else{
+    opt_lambda = ((lambda1 < lambda2) ? (lambda1):(lambda2));
+    // Check if z for lambda 2 is within the height of unit cyl
+    z = rayclone.p0.pz + opt_lambda*rayclone.d.pz;
+    if(abs(z) <= 1 && opt_lambda > 0){//if height is valid and we're in viewplane
+    // See if this is the smallest lambda in comparison to 1
+    // Or if lambda hasn't been assigned
+      if((*lambda == -1)){ 
+        *lambda = opt_lambda;
+      }
+    }
+  }
+
  }
  // ONE SOLUTION
  else if(disc == 0){
-  opt_lambda= (-1*B + disc)/(A); 
+  opt_lambda= (-1*B + sqrt(disc))/(A); 
   
   // Check if z for opt_lambda is within the height of unit cyl
   z = rayclone.p0.pz + opt_lambda*rayclone.d.pz;
-  if(z <= 1 && z >=0 && opt_lambda > 0){//if height is valid and we're in viewplane
+  if(abs(z) <= 1  && opt_lambda > 0){//if height is valid and we're in viewplane
    // See if this is the smallest lambda
    // Or if lambda hasn't been assigned
    if((opt_lambda < *lambda) || (*lambda == -1)){
      *lambda = opt_lambda;
    }
   }
- } // Otherwsie NO SOLUTIONS so lambda stays -1
+ }// Otherwsie NO SOLUTIONS so lambda stays -1
+ else{
+  *lambda = -1;
+  }
+
+ // If assigned lambda is valid
+ if(*lambda > 0){
+   // Update ray position wrt new lambda
+   rayPosition(r, *lambda, p);
+   rayPosition(&rayclone, *lambda, &circ_norm);
+
+   // Normalizing and setting normal
+   normalTransform(&circ_norm, n, cylinder);
+   normalize(n);
+
+   // Setting a and b
+   *a = acos(p->pz)/(2*PI);
+   *b = (atan(p->py/p->px)+PI/2)/PI;
+   return;
+  }
+ else{
+   *lambda = -1;
+   *a = -1;
+   *b = -1;
+  }
 
  // FIND INTERSECTION BETWEEN BASES OF CYL (plane st z = 0 or 1)
  // Declaring necessary objects
@@ -533,19 +580,9 @@ void cylIntersect(struct object3D *cylinder, struct ray3D *r, double *lambda, st
  // Origin
  origin.px = 0; origin.py = 0; origin.pz = 0; origin.pw = 1;
 
- // Normal Vector
- og_n.px = 0; og_n.py = 0; og_n.pz = 1; og_n.pw = 1;
-
- // Plane points (z = 0 or 1)
- struct point3D plane1;
- plane1.px = 0; plane1.py=0; plane1.pz=1; plane1.pw=1;
- struct point3D plane2;
- plane2.px = 0; plane2.py=0; plane2.pz=0; plane2.pw=1;
 
  // CHECK INTERSECTION FOR PLANE 1
- // p-a stored for the first plane
- subVectors(&rayclone.p0, &plane1);
- lambda1 = dot(&plane1, &og_n)/dot(&r->d, &og_n);
+ lambda1 = (1 - rayclone.p0.pz) / rayclone.d.pz;
  // Update the ray's position according to lambda of first plane
  rayPosition(&rayclone,lambda1,&intersection);
 
@@ -559,9 +596,7 @@ void cylIntersect(struct object3D *cylinder, struct ray3D *r, double *lambda, st
  }
 
  // CHECK INTERSECTION FOR PLANE 2
- // p-a stored for the second plane
- subVectors(&rayclone.p0, &plane2);
- lambda2 = dot(&plane2, &og_n)/dot(&r->d, &og_n);
+ lambda2 = (-1 - rayclone.p0.pz) / rayclone.d.pz;
  // Update the ray's position according to lambda of first plane
  rayPosition(&rayclone,lambda2,&intersection);
 
@@ -574,9 +609,20 @@ void cylIntersect(struct object3D *cylinder, struct ray3D *r, double *lambda, st
    }
  }
 
+ // Normal Vector Update before transform
+ og_n.px = 0; 
+ og_n.py = 0; 
+ og_n.pz = rayclone.p0.pz + ((*lambda)*(rayclone.d.pz)); 
+ og_n.pw = 1;
+ normalize(&og_n);
+
  // CHECKING IF FINAL LAMBDA IN VIEW PLANE
  if(*lambda > 0){
   // Plane is in the viewplane
+  p->px = intersection.px;
+  p->py = intersection.py;
+  p->pz = intersection.pz;
+  p->pw = intersection.pw;
 
   // Update position due to smallest lambda
   rayPosition(&rayclone,*lambda,&intersection);
