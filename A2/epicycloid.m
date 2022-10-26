@@ -155,42 +155,52 @@ for i=0:.05:12*pi
   %%%% PART 2 code goes just below these comments - YOU NEED TANGENT VECTORS
   %%%% for this to work so right now this is commented out. Uncomment the
   %%%% code below when you're ready to work on this part.
+
+  %Setting local coordinates of the camera
+
+  g = [tx ty tz];
+  w = -g/norm(g);
+
+  tup = [0 1 0];
+
+  wcrosst = cross(tup, w)/norm(cross(tup, w));
+  wcrossu = cross(w, wcrosst);
+ 
+  vx=wcrossu(1);
+  vy=wcrossu(2);	% These are dummy vectors, replace with the
+  vz=wcrossu(3);	% correct ones!
   
-%  	vx=0;
-%  	vy=0;	% These are dummy vectors, replace with the
-%  	vz=1;	% correct ones!
-%  
-%  	ux=0;
-%  	uy=0;
-%  	uz=1;
-%  
-%  	v=[vx vy vz];
-%  	u=[ux uy uz];
-%  
-%  	% Let's plot a parametric circle using these vectors.
-%  	% it they are correct, you should get circles that
-%  	% are perpendicular to the curve at each of the points
-%  	% where we computed a tangent vector.
-%      % To do this, we're using a parametric circle
-%      %
-%      %   C(t)=v*cos(t) + u*sin(t), t in [0, 2*pi]
-%      %
-%      % and since the circle is centered at point p
-%      % on the curve, we have:
-%      %
-%      %   C(t)=p + v*cos(t) + u*sin(t), t in [0, 2*pi]
-%      %
-%      % It looks weird below because I'm using Matlab
-%      % operators to get all points in one go without 
-%      % using loops, but I'm just evaluating the
-%      % equation above! (yes, really!).cl
-%  
-%    	t_circ=[0:.1:2*pi]';
-%        rad=.5;				% Circle radius!
-%    	p_circ=repmat([xa ya za],[length(t_circ) 1]);
-%        p_circ=p_circ+(repmat(rad*cos(t_circ),[1 3]).*repmat(v,[length(t_circ),1]));
-%        p_circ=p_circ+(repmat(rad*sin(t_circ),[1 3]).*repmat(u,[length(t_circ) 1]));
-%        plot3(p_circ(:,1),p_circ(:,2),p_circ(:,3),'.','color',[0 .75 0]);
+  ux=wcrosst(1);
+  uy=wcrosst(2);
+  uz=wcrosst(3);
+  
+  v=[vx vy vz];
+  u=[ux uy uz];
+  
+  	% Let's plot a parametric circle using these vectors.
+  	% it they are correct, you should get circles that
+  	% are perpendicular to the curve at each of the points
+  	% where we computed a tangent vector.
+      % To do this, we're using a parametric circle
+      %
+      %   C(t)=v*cos(t) + u*sin(t), t in [0, 2*pi]
+      %
+      % and since the circle is centered at point p
+      % on the curve, we have:
+      %
+      %   C(t)=p + v*cos(t) + u*sin(t), t in [0, 2*pi]
+      %
+      % It looks weird below because I'm using Matlab
+      % operators to get all points in one go without 
+      % using loops, but I'm just evaluating the
+      % equation above! (yes, really!).cl
+  
+    	t_circ=[0:.1:2*pi]';
+        rad=.5;				% Circle radius!
+    	p_circ=repmat([xa ya za],[length(t_circ) 1]);
+        p_circ=p_circ+(repmat(rad*cos(t_circ),[1 3]).*repmat(v,[length(t_circ),1]));
+        p_circ=p_circ+(repmat(rad*sin(t_circ),[1 3]).*repmat(u,[length(t_circ) 1]));
+        plot3(p_circ(:,1),p_circ(:,2),p_circ(:,3),'.','color',[0 .75 0]);
         
   %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
   %% SAVE THIS FIGURE, you need to submit it. And the code below will change the plot!
