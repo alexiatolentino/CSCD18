@@ -601,14 +601,14 @@ int main(int argc, char *argv[])
       }
 
       // Final full color adjustment 
-      totalcol.R = totalcol.R/pow(dimension,2);
-      totalcol.G = totalcol.G/pow(dimension,2);
-      totalcol.B = totalcol.B/pow(dimension,2);
+      fullcol.R = fullcol.R/pow(dimension,2);
+      fullcol.G = fullcol.G/pow(dimension,2);
+      fullcol.B = fullcol.B/pow(dimension,2);
 
       // Setting img colour
-      rgbIm[3 * (j * im->sx + (im->sx - i)) + 0] = totalcol.R * 255;
-      rgbIm[3 * (j * im->sx + (im->sx - i)) + 1] = totalcol.G * 255;
-      rgbIm[3 * (j * im->sx + (im->sx - i)) + 2] = totalcol.B * 255;
+      rgbIm[3 * (j * im->sx + (im->sx - i)) + 0] = fullcol.R * 255;
+      rgbIm[3 * (j * im->sx + (im->sx - i)) + 1] = fullcol.G * 255;
+      rgbIm[3 * (j * im->sx + (im->sx - i)) + 2] = fullcol.B * 255;
     } // end for i
   }   // end for j
 
