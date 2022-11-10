@@ -148,6 +148,29 @@
  //           the relflectance properties of your objects, and the number and type of light sources
  //           in the scene.
  
+//ra, rd, rs, rg, R, G, B, alpha, r_index, and shinyness)
+
+//  o=newSphere(1,.5,.95,.75,0,1,0,1,1,6);
+//  //Scale(o,.95,1.65,.65);
+//  //RotateZ(o,-PI/1.5);
+//  Translate(o,3,3,3);
+//  invert(&o->T[0][0],&o->Tinv[0][0]);
+//  insertObject(o,&object_list);
+
+//  o=newSphere(1,.5,.95,.75,0,1,0,1,1,6);
+//  Scale(o,-0.5,-0.5,-0.5);
+//  //RotateZ(o,-PI/1.5);
+//  Translate(o,3,3,4);
+//  invert(&o->T[0][0],&o->Tinv[0][0]);
+//  insertObject(o,&object_list);
+
+//  o=newCyl(0.4,.5,.5,.5,0,1,0,1,1,6);
+//  Scale(o,2,0,0);
+//  RotateZ(o,PI/2);
+//  Translate(o,-1,-1,3);
+//  invert(&o->T[0][0],&o->Tinv[0][0]);
+//  insertObject(o,&object_list);
+
  ///////////////////////////////////////////////////////////////////////////////////////////////////////////
  // TO DO: For Assignment 3 you *MUST* define your own cool scene.
  //	   We will be looking for the quality of your scene setup, the use of hierarchical or composite
