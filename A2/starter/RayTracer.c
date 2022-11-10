@@ -541,46 +541,74 @@ int main(int argc, char *argv[])
       mcw[3][3] = 1;
       nullSetupView(cam, &e, &g, &up, u, v, w);
 
-      // Setting camera point coordinates
-      struct point3D point_coord;
-      point_coord.px = cam->wl + du * i;
-      point_coord.py = cam->wt + dv * j;
-      point_coord.pz = -1;
-      point_coord.pw = 1;
 
-      // Convert local point coordinate to world coordinate using conversion matrix
-      matVecMult(mcw, &point_coord);
-      addVectors(&e, &point_coord);
-      point_coord.pw = 1;
+      //Setting dimension for antialiasing
+      int dimension;
+      if(antialiasing){
+        dimension = 3; 
+      }
+      else{
+        dimension = 1;
+      }
 
-      // Set direction vector for pixel ij
-      struct point3D dir;
-      dir.px = point_coord.px;
-      dir.py = point_coord.py;
-      dir.pz = point_coord.pz;
-      dir.pw = 1;
+      struct colourRGB fullcol;
+      fullcol.R = 0; fullcol.G = 0; fullcol.B = 0;
 
-      // Setting direction to be d-e
-      subVectors(&e, &dir);
-      dir.pw = 1;
-      normalize(&dir);
+      for(int k = 0; k < dimension; k++){
+        for(int j = 0; j < dimension; j++){
+          // Setting camera point coordinates
+          struct point3D point_coord;
+          point_coord.px = cam->wl + du * i + k*du/dimension;
+          point_coord.py = cam->wt + dv * j + k*dv/dimension;
+          point_coord.pz = cam->f; // changed to f bc we can now change camera pos
+          point_coord.pw = 1;
 
-      // Creating new ray
-      struct ray3D new_ray;
-      initRay(&new_ray, &point_coord, &dir);
+          // Convert local point coordinate to world coordinate using conversion matrix
+          matVecMult(mcw, &point_coord);
+          addVectors(&e, &point_coord);
+          point_coord.pw = 1;
 
-      // Setting initial colours
-      col.R = background.R;
-      col.G = background.G;
-      col.B = background.B;
+          // Set direction vector for pixel ij
+          struct point3D dir;
+          dir.px = point_coord.px;
+          dir.py = point_coord.py;
+          dir.pz = point_coord.pz;
+          dir.pw = 1;
 
-      // Trace the new ray
-      rayTrace(&new_ray, 1, &col, NULL);
+          // Setting direction to be d-e
+          subVectors(&e, &dir);
+          dir.pw = 1;
+          normalize(&dir);
+
+          // Creating new ray
+          struct ray3D new_ray;
+          initRay(&new_ray, &point_coord, &dir);
+
+          // Setting initial colours
+          col.R = background.R;
+          col.G = background.G;
+          col.B = background.B;
+
+          // Trace the new ray
+          rayTrace(&new_ray, 1, &col, NULL);
+
+          // Adjust full colour
+          fullcol.R += col.R;
+          fullcol.G += col.G;
+          fullcol.B += col.B;
+
+        }
+      }
+
+      // Final full color adjustment 
+      totalcol.R = totalcol.R/pow(dimension,2);
+      totalcol.G = totalcol.G/pow(dimension,2);
+      totalcol.B = totalcol.B/pow(dimension,2);
 
       // Setting img colour
-      rgbIm[3 * (j * im->sx + (im->sx - i)) + 0] = col.R * 255;
-      rgbIm[3 * (j * im->sx + (im->sx - i)) + 1] = col.G * 255;
-      rgbIm[3 * (j * im->sx + (im->sx - i)) + 2] = col.B * 255;
+      rgbIm[3 * (j * im->sx + (im->sx - i)) + 0] = totalcol.R * 255;
+      rgbIm[3 * (j * im->sx + (im->sx - i)) + 1] = totalcol.G * 255;
+      rgbIm[3 * (j * im->sx + (im->sx - i)) + 2] = totalcol.B * 255;
     } // end for i
   }   // end for j
 
