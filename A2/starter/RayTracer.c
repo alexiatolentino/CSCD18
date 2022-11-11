@@ -555,11 +555,11 @@ int main(int argc, char *argv[])
       fullcol.R = 0; fullcol.G = 0; fullcol.B = 0;
 
       for(int k = 0; k < dimension; k++){
-        for(int j = 0; j < dimension; j++){
+        for(int n = 0; n < dimension; n++){
           // Setting camera point coordinates
           struct point3D point_coord;
           point_coord.px = cam->wl + du * i + k*du/dimension;
-          point_coord.py = cam->wt + dv * j + k*dv/dimension;
+          point_coord.py = cam->wt + dv * j + n*dv/dimension;
           point_coord.pz = cam->f; // changed to f bc we can now change camera pos
           point_coord.pw = 1;
 
