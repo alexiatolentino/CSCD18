@@ -907,9 +907,73 @@ void texMap(struct image *img, double a, double b, double *R, double *G, double 
   // interpolation to obtain the texture colour.
   //////////////////////////////////////////////////
 
-  *(R) = 0; // Returns black - delete this and
-  *(G) = 0; // replace with your code to compute
-  *(B) = 0; // texture colour at (a,b)
+  // Makes sure the coordinates are within 
+ if (a >= 0 && a <= 1 && b >= 0 && b <= 1) {
+  
+  // Calulate the width and height scaling factors
+  int width_factor = img->sx - 1;
+  int height_factor = img->sy - 1;
+
+  // double u = a * (512 / width_factor);
+  // double v = b * (512 / height_factor);
+  double u = a;
+  double v = b;
+
+  // printf("a: %f, b: %f, u: %f, v: %f\n", a, b, u, v);
+
+  // Put texture colour on the object
+  struct colourRGB p1, p2, p3, p4;
+  double *rgbTex;
+  rgbTex = (double *) img->rgbdata;
+
+  double x = a * img->sx;
+  double y = b * img->sy;
+
+  int x_tl = floor(x);
+  int y_tl = floor(y);
+
+  int x_tr = ceil(x);
+  int y_tr = floor(y);
+
+  int x_bl = floor(x);
+  int y_bl = ceil(y);
+
+  int x_br = ceil(x);
+  int y_br = ceil(y);
+
+  p1.R = rgbTex[3 * (y_tl * height_factor + (width_factor - x_tl)) + 0];
+  p1.G = rgbTex[3 * (y_tl * height_factor + (width_factor - x_tl)) + 1];
+  p1.B = rgbTex[3 * (y_tl * height_factor + (width_factor - x_tl)) + 2];
+  p2.R = rgbTex[3 * (y_tr * height_factor + (width_factor - x_tr)) + 0];
+  p2.G = rgbTex[3 * (y_tr * height_factor + (width_factor - x_tr)) + 1];
+  p2.B = rgbTex[3 * (y_tr * height_factor + (width_factor - x_tr)) + 2];
+  p3.R = rgbTex[3 * (y_bl * height_factor + (width_factor - x_bl)) + 0];
+  p3.G = rgbTex[3 * (y_bl * height_factor + (width_factor - x_bl)) + 1];
+  p3.B = rgbTex[3 * (y_bl * height_factor + (width_factor - x_bl)) + 2];
+  p4.R = rgbTex[3 * (y_br * height_factor + (width_factor - x_br)) + 0];
+  p4.G = rgbTex[3 * (y_br * height_factor + (width_factor - x_br)) + 1];
+  p4.B = rgbTex[3 * (y_br * height_factor + (width_factor - x_br)) + 2];
+
+  // Bilinear interpolation
+  double a_top, a_bot;
+  // R
+  a_top = u * p2.R + (1 - u) * p1.R;
+  a_bot = u * p4.R + (1 - u) * p3.R;
+  *(R) = v * a_bot + (1 - v) * a_top;
+  // G
+  a_top = u * p2.G + (1 - u) * p1.G;
+  a_bot = u * p4.G + (1 - u) * p3.G;
+  *(G) = v * a_bot + (1 - v) * a_top;
+  // B
+  a_top = u * p2.B + (1 - u) * p1.B;
+  a_bot = u * p4.B + (1 - u) * p3.B;
+  *(B) = v * a_bot + (1 - v) * a_top;
+ } 
+ else {
+  *(R)=0;	// Returns black - delete this and
+  *(G)=0;	// replace with your code to compute
+  *(B)=0;	// texture colour at (a,b)
+ }
   return;
 }
 
@@ -1382,6 +1446,8 @@ void nullSetupView(struct view *c, struct point3D *e, struct point3D *g, struct 
   c->W2C[2][3] = -e->pz;
   c->W2C[3][3] = 1;
 }
+
+
 
 /////////////////////////////////////////
 // Image I/O section

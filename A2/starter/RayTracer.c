@@ -115,6 +115,7 @@ void phong(struct object3D *obj, struct point3D *p, struct point3D *n, struct ra
   }
 }
 
+
 void rtShade(struct object3D *obj, struct point3D *p, struct point3D *n, struct ray3D *ray, int depth, double a, double b, struct colourRGB *col)
 {
   // This function implements the shading model as described in lecture. It takes
@@ -179,22 +180,32 @@ void rtShade(struct object3D *obj, struct point3D *p, struct point3D *n, struct 
   struct colourRGB local, global;
   double ambient;
   struct colourRGB diffuse, specular;
+  struct tmp_col;
 
   // SETTING LOCAL COMPONENTS
   if (lambda > 0 && lambda < 1)
   {
+    // Declaring ct
+    struct colourRGB ct;
+    ct.R = 0; ct.G =0; ct.B=0;
+    
+    obj->texMap(obj->texImg, a, b, &ct.R, &ct.G, &ct.B);
     // Ambient term
-    local.R = obj->alb.ra;
-    local.G = obj->alb.ra;
-    local.B = obj->alb.ra;
+    local.R = obj->alb.ra* ct.R;
+    local.G = obj->alb.ra* ct.G;
+    local.B = obj->alb.ra* ct.B;
   }
   else
   {
+    // Declaring ct
+    struct colourRGB ct;
+    ct.R = 0; ct.G =0; ct.B=0;
+    obj->texMap(obj->texImg, a, b, &ct.R, &ct.G, &ct.B);
     // Use Phong model to determine local components
     phong(obj, p, n, &ray_ls, ray, &ambient, &diffuse, &specular);
-    local.R = R * (ambient + diffuse.R) + specular.R;
-    local.G = G * (ambient + diffuse.G) + specular.G;
-    local.B = B * (ambient + diffuse.B) + specular.B;
+    local.R = R * (ambient + diffuse.R)* ct.R + specular.R;
+    local.G = G * (ambient + diffuse.G)* ct.G + specular.G;
+    local.B = B * (ambient + diffuse.B)* ct.B + specular.B;
   }
 
   // SETTING GLOBAL COMPONENTS
@@ -226,6 +237,14 @@ void rtShade(struct object3D *obj, struct point3D *p, struct point3D *n, struct 
       global.G = obj->alb.rg * global.G;
       global.B = obj->alb.rg * global.B;
     }
+    //////////
+    /* if (obj->alpha < 1.0)
+    { 
+      struct ray3D *r_ray;
+      r_ray->p0 = *p;
+      r_ray->d = *n;
+      refract(obj,ray,r_ray,n,depth,&tmp_col);
+    } */
   }
 
   // Setting limit to local and global components = 1
@@ -235,6 +254,7 @@ void rtShade(struct object3D *obj, struct point3D *p, struct point3D *n, struct 
 
   return;
 }
+
 
 void findFirstHit(struct ray3D *ray, double *lambda, struct object3D *Os, struct object3D **obj, struct point3D *p, struct point3D *n, double *a, double *b)
 {
