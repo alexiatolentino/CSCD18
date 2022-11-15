@@ -914,20 +914,17 @@ void texMap(struct image *img, double a, double b, double *R, double *G, double 
   int width_factor = img->sx - 1;
   int height_factor = img->sy - 1;
 
-  // double u = a * (512 / width_factor);
-  // double v = b * (512 / height_factor);
   double u = a;
   double v = b;
 
-  // printf("a: %f, b: %f, u: %f, v: %f\n", a, b, u, v);
 
   // Put texture colour on the object
   struct colourRGB p1, p2, p3, p4;
   double *rgbTex;
   rgbTex = (double *) img->rgbdata;
 
-  double x = a * img->sx;
-  double y = b * img->sy;
+  double x = a * width_factor;
+  double y = b * height_factor;
 
   int x_tl = floor(x);
   int y_tl = floor(y);
@@ -941,16 +938,16 @@ void texMap(struct image *img, double a, double b, double *R, double *G, double 
   int x_br = ceil(x);
   int y_br = ceil(y);
 
-  p1.R = rgbTex[3 * (y_tl * height_factor + (width_factor - x_tl)) + 0];
+  p1.R = rgbTex[3 * (y_tl * height_factor + (width_factor - x_tl))];
   p1.G = rgbTex[3 * (y_tl * height_factor + (width_factor - x_tl)) + 1];
   p1.B = rgbTex[3 * (y_tl * height_factor + (width_factor - x_tl)) + 2];
-  p2.R = rgbTex[3 * (y_tr * height_factor + (width_factor - x_tr)) + 0];
+  p2.R = rgbTex[3 * (y_tr * height_factor + (width_factor - x_tr))];
   p2.G = rgbTex[3 * (y_tr * height_factor + (width_factor - x_tr)) + 1];
   p2.B = rgbTex[3 * (y_tr * height_factor + (width_factor - x_tr)) + 2];
-  p3.R = rgbTex[3 * (y_bl * height_factor + (width_factor - x_bl)) + 0];
+  p3.R = rgbTex[3 * (y_bl * height_factor + (width_factor - x_bl))];
   p3.G = rgbTex[3 * (y_bl * height_factor + (width_factor - x_bl)) + 1];
   p3.B = rgbTex[3 * (y_bl * height_factor + (width_factor - x_bl)) + 2];
-  p4.R = rgbTex[3 * (y_br * height_factor + (width_factor - x_br)) + 0];
+  p4.R = rgbTex[3 * (y_br * height_factor + (width_factor - x_br))];
   p4.G = rgbTex[3 * (y_br * height_factor + (width_factor - x_br)) + 1];
   p4.B = rgbTex[3 * (y_br * height_factor + (width_factor - x_br)) + 2];
 
@@ -968,11 +965,6 @@ void texMap(struct image *img, double a, double b, double *R, double *G, double 
   a_top = u * p2.B + (1 - u) * p1.B;
   a_bot = u * p4.B + (1 - u) * p3.B;
   *(B) = v * a_bot + (1 - v) * a_top;
- } 
- else {
-  *(R)=0;	// Returns black - delete this and
-  *(G)=0;	// replace with your code to compute
-  *(B)=0;	// texture colour at (a,b)
  }
   return;
 }
@@ -992,8 +984,23 @@ void alphaMap(struct image *img, double a, double b, double *alpha)
   // interpolation to obtain the texture colour.
   //////////////////////////////////////////////////
 
-  *(alpha) = 1; // Returns 1 which means fully opaque. Replace
-  return;       // with your code if implementing alpha maps.
+  int a_im, b_im;
+  double a_frac, b_frac;
+  double *ptr_im=(double *)img->rgbdata; 
+
+  if (a<0) a=0; 
+  if (a>1) a=1;
+  if (b<0) b=0;
+  if (b>1) b=1;  
+
+  a_frac=(a*img->sx);
+  b_frac=(b*img->sy);
+  
+  a_im=(int)a_frac;
+  b_im=(int)b_frac;
+
+ *(alpha)=*(ptr_im+a_im+b_im);	// Returns 1 which means fully opaque. Replace
+ return;	// with your code if implementing alpha maps.
 }
 
 /////////////////////////////
@@ -1018,7 +1025,7 @@ void insertPLS(struct pointLS *l, struct pointLS **list)
 
 void addAreaLight(double sx, double sy, double nx, double ny, double nz,
                   double tx, double ty, double tz, int N,
-                  double r, double g, double b, struct object3D **o_list, struct pointLS **l_list)
+                  double r, double g, double b, struct object3D **o_list, struct pointLS **l_list, int obj_type)
 {
   /*
     This function sets up and inserts a rectangular area light source
@@ -1043,6 +1050,46 @@ void addAreaLight(double sx, double sy, double nx, double ny, double nz,
   //       light source's object surface within rtShade(). This is a bit more tricky
   //       but reduces artifacts significantly. If you do that, then there is no need
   //       to insert a series of point lightsources in this function.
+  struct object3D *areaLS;
+
+  // Initiate all 
+  if (obj_type == 1){
+    areaLS=newPlane(1,1,1,1,r,g,b,1,1,0);
+  }
+  else if (obj_type == 2){
+    areaLS = newSphere(1,1,1,1,r,g,b,1,1,0);
+  }
+  else{
+    areaLS = newCyl(1,1,1,1,r,g,b,1,1,0);
+  }
+
+
+  areaLS->isLightSource = 1;
+  Scale(areaLS,sx,sy,1);
+  Translate(areaLS,tx,ty,tz);
+  RotateX(areaLS,nx);
+  RotateY(areaLS,ny);
+  RotateZ(areaLS,nz);
+  invert(*areaLS->T,*areaLS->Tinv);	
+  insertObject(areaLS,o_list);
+
+  //Origin of the lightsource
+  for (int i = 0; i < N; i++) {
+    struct point3D origin;
+    origin.pw = 1;   
+
+    if (obj_type == 1) {
+      planeSample(areaLS, &origin.px, &origin.py, &origin.pz);
+    } else if (obj_type == 2) {
+      sphereSample(areaLS, &origin.px, &origin.py, &origin.pz);
+    } else{
+      cylSample(areaLS, &origin.px, &origin.py, &origin.pz);
+    }
+      
+    struct pointLS *l;
+    l=newPLS(&origin,r,g,b);
+    insertPLS(l,l_list);
+  }
 }
 
 ///////////////////////////////////

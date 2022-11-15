@@ -203,9 +203,9 @@ void alphaMap(struct image *img, double a, double b, double *R, double *G, doubl
 // Functions to insert objects and lights into their respective lists
 void insertObject(struct object3D *o, struct object3D **list);
 void insertPLS(struct pointLS *l, struct pointLS **list);
-void addAreaLight(double sx, double sy, double nx, double ny, double nz,\
-                  double tx, double ty, double tz, int lx, int ly,\
-                  double r, double g, double b, struct object3D **o_list, struct pointLS **l_list);
+void addAreaLight(double sx, double sy, double nx, double ny, double nz,
+                  double tx, double ty, double tz, int N,
+                  double r, double g, double b, struct object3D **o_list, struct pointLS **l_list, int obj_type);
 
 // Function to set up the camera and viewing coordinate frame.
 // You will have to add code to this function's body in utils.c

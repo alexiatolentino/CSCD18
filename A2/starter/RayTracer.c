@@ -64,7 +64,9 @@ void buildScene(void)
 
   which is used by the regular rtShade
 */
-void phong(struct object3D *obj, struct point3D *p, struct point3D *n, struct ray3D *ray_ls, struct ray3D *ray, double *amb, struct colourRGB *diff, struct colourRGB *spec)
+void phong(struct object3D *obj, struct point3D *p, struct point3D *n, 
+          struct ray3D *ray_ls, struct ray3D *ray, double *amb, 
+          struct colourRGB *diff, struct colourRGB *spec, double k)
 {
   // Setting Ambient component
   *amb = obj->alb.ra;
@@ -92,26 +94,26 @@ void phong(struct object3D *obj, struct point3D *p, struct point3D *n, struct ra
   if (obj->frontAndBack == 0)
   {
     // Setting Diffuse component
-    diff->R = obj->alb.rd * light_list->col.R * max(0, dot(n, &ray_ls->d));
-    diff->G = obj->alb.rd * light_list->col.G * max(0, dot(n, &ray_ls->d));
-    diff->B = obj->alb.rd * light_list->col.B * max(0, dot(n, &ray_ls->d));
+    diff->R = obj->alb.rd * light_list->col.R * max(0, dot(n, &ray_ls->d)) * k;
+    diff->G = obj->alb.rd * light_list->col.G * max(0, dot(n, &ray_ls->d)) * k;
+    diff->B = obj->alb.rd * light_list->col.B * max(0, dot(n, &ray_ls->d)) * k;
 
     // Setting Specular component
-    spec->R = obj->alb.rs * light_list->col.R * pow(max(0, dot(&c_dir, &m_dir)), obj->shinyness);
-    spec->G = obj->alb.rs * light_list->col.G * pow(max(0, dot(&c_dir, &m_dir)), obj->shinyness);
-    spec->B = obj->alb.rs * light_list->col.B * pow(max(0, dot(&c_dir, &m_dir)), obj->shinyness);
+    spec->R = obj->alb.rs * light_list->col.R * pow(max(0, dot(&c_dir, &m_dir)), obj->shinyness) * k;
+    spec->G = obj->alb.rs * light_list->col.G * pow(max(0, dot(&c_dir, &m_dir)), obj->shinyness) * k;
+    spec->B = obj->alb.rs * light_list->col.B * pow(max(0, dot(&c_dir, &m_dir)), obj->shinyness) * k;
   }
   else
   {
     // Setting diffuse component
-    diff->R = obj->alb.rd * light_list->col.R * max(0, abs(dot(n, &ray_ls->d)));
-    diff->G = obj->alb.rd * light_list->col.G * max(0, abs(dot(n, &ray_ls->d)));
-    diff->B = obj->alb.rd * light_list->col.B * max(0, abs(dot(n, &ray_ls->d)));
+    diff->R = obj->alb.rd * light_list->col.R * max(0, abs(dot(n, &ray_ls->d))) * k;
+    diff->G = obj->alb.rd * light_list->col.G * max(0, abs(dot(n, &ray_ls->d))) * k;
+    diff->B = obj->alb.rd * light_list->col.B * max(0, abs(dot(n, &ray_ls->d))) * k;
 
     // Setting Specular component
-    spec->R = obj->alb.rs * light_list->col.R * pow(max(0, abs(dot(&c_dir, &m_dir))), obj->shinyness);
-    spec->G = obj->alb.rs * light_list->col.G * pow(max(0, abs(dot(&c_dir, &m_dir))), obj->shinyness);
-    spec->B = obj->alb.rs * light_list->col.B * pow(max(0, abs(dot(&c_dir, &m_dir))), obj->shinyness);
+    spec->R = obj->alb.rs * light_list->col.R * pow(max(0, abs(dot(&c_dir, &m_dir))), obj->shinyness) * k;
+    spec->G = obj->alb.rs * light_list->col.G * pow(max(0, abs(dot(&c_dir, &m_dir))), obj->shinyness) * k;
+    spec->B = obj->alb.rs * light_list->col.B * pow(max(0, abs(dot(&c_dir, &m_dir))), obj->shinyness) * k;
   }
 }
 
@@ -164,9 +166,7 @@ void rtShade(struct object3D *obj, struct point3D *p, struct point3D *n, struct 
   // Be sure to update 'col' with the final colour computed here!
   // Initialize ray from intersection to light source
   struct ray3D ray_ls;
-  struct point3D ls_dir = lightsource->p0;
-  subVectors(p, &ls_dir);
-  initRay(&ray_ls, p, &ls_dir);
+  
 
   // Test for intersection btwn ray and other objects in the scene
   double lambda = -1;
@@ -174,38 +174,91 @@ void rtShade(struct object3D *obj, struct point3D *p, struct point3D *n, struct 
   struct point3D p_int, n_int;
   double a_int, b_int;
 
-  findFirstHit(&ray_ls, &lambda, obj, &hitobj, &p_int, &n_int, &a_int, &b_int);
-
   // Setting local and global components
   struct colourRGB local, global;
-  double ambient;
+  double ambient, distance;
   struct colourRGB diffuse, specular;
-  struct tmp_col;
 
-  // SETTING LOCAL COMPONENTS
-  if (lambda > 0 && lambda < 1)
-  {
-    // Declaring ct
-    struct colourRGB ct;
-    ct.R = 0; ct.G =0; ct.B=0;
-    
-    obj->texMap(obj->texImg, a, b, &ct.R, &ct.G, &ct.B);
-    // Ambient term
-    local.R = obj->alb.ra* ct.R;
-    local.G = obj->alb.ra* ct.G;
-    local.B = obj->alb.ra* ct.B;
+  while(lightsource != NULL){
+    struct point3D ls_dir = lightsource->p0;
+    subVectors(p, &ls_dir);
+
+    distance = length(&ls_dir);
+    normalize(&ls_dir);
+
+    initRay(&ray_ls, p, &ls_dir);
+    ray_ls.inside = 0;
+
+    findFirstHit(&ray_ls, &lambda, obj, &hitobj, &p_int, &n_int, &a_int, &b_int);
+
+    lambda = lambda/distance;
+
+    if (lambda > 0 && lambda < 1){
+      // Ambient term
+      local.R = obj->alb.ra;
+      local.G = obj->alb.ra;
+      local.B = obj->alb.ra;
+    }
+    else{
+      // Use Phong model to determine local components
+      phong(obj, p, n, &ray_ls, ray, &ambient, &diffuse, &specular, 1);
+      local.R = R * (ambient + diffuse.R) + specular.R;
+      local.G = G * (ambient + diffuse.G) + specular.G;
+      local.B = B * (ambient + diffuse.B) + specular.B;
+    }
+    lightsource = lightsource->next;
   }
-  else
-  {
-    // Declaring ct
-    struct colourRGB ct;
-    ct.R = 0; ct.G =0; ct.B=0;
-    obj->texMap(obj->texImg, a, b, &ct.R, &ct.G, &ct.B);
-    // Use Phong model to determine local components
-    phong(obj, p, n, &ray_ls, ray, &ambient, &diffuse, &specular);
-    local.R = R * (ambient + diffuse.R)* ct.R + specular.R;
-    local.G = G * (ambient + diffuse.G)* ct.G + specular.G;
-    local.B = B * (ambient + diffuse.B)* ct.B + specular.B;
+  
+  struct object3D *curr_obj= object_list;
+  int K = 1000;
+  int k = 0;
+  while(curr_obj != NULL){
+    if(curr_obj->isLightSource){
+      k = 0;
+      //sample K points
+      for (int j = 0; j < K; j++) {
+        lambda = -1;
+        struct point3D shadow;
+        (*curr_obj->randomPoint)(curr_obj, &shadow.px, &shadow.py, &shadow.pz);
+        shadow.pw = 1;
+
+        ray_ls.d.px = shadow.px - p->px;
+        ray_ls.d.py = shadow.py - p->py;
+        ray_ls.d.pz = shadow.pz - p->pz;
+        ray_ls.d.pw = 1;
+        //subVectors(p, &ray_ls.p0); // switching
+
+        distance = length(&ray_ls.d);
+        normalize(&ray_ls.d);
+        ray_ls.inside = 0;
+
+        findFirstHit(&ray_ls, &lambda, curr_obj, &hitobj, &p_int, &n_int, &a_int, &b_int);
+
+        lambda = lambda/distance;
+
+        if(lambda < 0 || lambda > 1 || hitobj->isLightSource == 1){
+          k+=1;
+        }
+      } 
+      // SETTING LOCAL COMPONENTS
+      if (lambda > 0 && lambda < 1)
+      {
+        //obj->textureMap(obj->texImg, a, b, &ct.R, &ct.G, &ct.B);
+        // Ambient term
+        local.R = obj->alb.ra;
+        local.G = obj->alb.ra;
+        local.B = obj->alb.ra;
+      }
+      else
+      {
+        // Use Phong model to determine local components
+        phong(obj, p, n, &ray_ls, ray, &ambient, &diffuse, &specular, k/K);
+        local.R += R * (ambient + diffuse.R) + specular.R;
+        local.G += G * (ambient + diffuse.G) + specular.G;
+        local.B += B * (ambient + diffuse.B) + specular.B;
+      }
+    }
+    curr_obj = curr_obj->next;
   }
 
   // SETTING GLOBAL COMPONENTS
@@ -237,14 +290,6 @@ void rtShade(struct object3D *obj, struct point3D *p, struct point3D *n, struct 
       global.G = obj->alb.rg * global.G;
       global.B = obj->alb.rg * global.B;
     }
-    //////////
-    /* if (obj->alpha < 1.0)
-    { 
-      struct ray3D *r_ray;
-      r_ray->p0 = *p;
-      r_ray->d = *n;
-      refract(obj,ray,r_ray,n,depth,&tmp_col);
-    } */
   }
 
   // Setting limit to local and global components = 1

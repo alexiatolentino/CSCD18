@@ -60,7 +60,7 @@
  Translate(o,-1.2,1.35,1.7);
  RotateZ(o,-PI/1.9);
  invert(&o->T[0][0],&o->Tinv[0][0]);			// Compute the inverse transform * DON'T FORGET TO DO THIS! *
- loadTexture(o,"./Texture/wavy.ppm",1,&texture_list);
+ loadTexture(o,"./Texture/wavy.pgm",3,&texture_list);
  insertObject(o,&object_list);
 
  
@@ -137,17 +137,23 @@
  RotateX(o,PI/2);
  Translate(o,0,-4,5);
  invert(&o->T[0][0],&o->Tinv[0][0]);
+ loadTexture(o,"./Texture/wavy.ppm",1,&texture_list);
  insertObject(o,&object_list);
 
 
  // Insert a single point light source. We set up its position as a point structure, and specify its
  // colour in terms of RGB (in [0,1]).
+ 
  p.px=0;
  p.py=25.5;
  p.pz=-3.5;
  p.pw=1;
  l=newPLS(&p,.95,.95,.95);
  insertPLS(l,&light_list);
+ 
+
+
+ //addAreaLight(.5, .5, 0, 0, 0, 4, 1, 1, 1, 1, 1, 1, &object_list, &light_list, 2);
 
  // End of simple scene for Assignment 2
  // Keep in mind that you can define new types of objects such as cylinders and parametric surfaces,
