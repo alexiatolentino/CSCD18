@@ -907,8 +907,8 @@ void texMap(struct image *img, double a, double b, double *R, double *G, double 
   // interpolation to obtain the texture colour.
   //////////////////////////////////////////////////
 
-  // Makes sure the coordinates are within 
- if (a >= 0 && a <= 1 && b >= 0 && b <= 1) {
+  // Makes sure the coordinates are within bounds
+  if (a >= 0 && a <= 1 && b >= 0 && b <= 1) {
   
   // Calulate the width and height scaling factors
   int width_factor = img->sx - 1;

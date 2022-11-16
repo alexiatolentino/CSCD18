@@ -117,6 +117,116 @@ void phong(struct object3D *obj, struct point3D *p, struct point3D *n,
   }
 }
 
+void refraction(struct object3D *obj, struct point3D *p, struct point3D *n, struct ray3D *ray, struct colourRGB *refract, struct colourRGB *reflect, int depth){
+  // If object has specular components
+    if (obj->alb.rg != 0 && obj->isLightSource == 0){
+      // Get mirror direction
+      struct ray3D mirror;
+
+      mirror.p0 = *p;
+      mirror.d.px = ray->d.px + (-2 * dot(n, &ray->d)) * n->px;
+      mirror.d.py = ray->d.py + (-2 * dot(n, &ray->d)) * n->py;
+      mirror.d.pz = ray->d.pz + (-2 * dot(n, &ray->d)) * n->pz;
+      mirror.d.pw = 1;
+
+      // Update global initial value
+      reflect->R = 0;
+      reflect->G = 0;
+      reflect->B = 0;
+
+      // Tracing the new mirror ray
+      rayTrace(&mirror, depth+1, reflect, obj);
+
+      // Updating the Ispec term scaled by refl coeff
+      reflect->R = obj->alpha * obj->alb.rg * reflect->R;
+      reflect->G = obj->alpha * obj->alb.rg * reflect->G;
+      reflect->B = obj->alpha * obj->alb.rg * reflect->B;
+
+    }
+    else{
+      reflect->R = 0; 
+      reflect->G = 0;
+      reflect->B = 0; 
+    }
+    
+    // If the object is refractive  (has index of refraction)
+    if (obj->r_index != 1){
+      struct ray3D refracted_ray;
+      refracted_ray.p0 = *p;
+      //refracted_ray.d = *n;
+      double n1, n2;
+
+      struct point3D normal;
+
+      // Total 
+
+      if(ray->inside){
+        refracted_ray.inside = 0;
+        n1 = obj->r_index;
+        n2 = 1.0;
+        normal.px = -n->px;
+        normal.py = -n->py;
+        normal.pz = -n->pz;
+        normal.pw = 1;
+      }
+      else{
+        refracted_ray.inside = 1;
+        n1 = 1.0;
+        n2 = obj->r_index;
+        normal.px = n->px;
+        normal.py = n->py;
+        normal.pz = n->pz;
+        normal.pw = 1;
+      }
+
+      struct point3D neg_norm;
+      neg_norm.px = -n->px;
+      neg_norm.py = -n->py;
+      neg_norm.pz = -n->pz;
+
+      // c is dot(-n, b)
+      double c;
+      c = dot(&neg_norm, &ray->d);
+
+      double r;
+      r = n1/n2;
+
+      // rb
+      struct point3D rb;
+      rb.px = r*ray->d.px;
+      rb.py = r*ray->d.py;
+      rb.pz = r*ray->d.pz;
+
+      // dt = rb + (rc - sqrt(1-r^2(1-c^2)))n
+      refracted_ray.d.px = rb.px + (r*c - sqrtl(1 - (pow(r,2) * (1 - pow(c,2))))) * normal.px;
+      refracted_ray.d.py = rb.py + (r*c - sqrtl(1 - (pow(r,2) * (1 - pow(c,2))))) * normal.py;
+      refracted_ray.d.pz = rb.pz + (r*c - sqrtl(1 - (pow(r,2) * (1 - pow(c,2))))) * normal.pz;
+
+      if (ray->inside && n1>n2){
+        double thetac = asin(n2/n1);
+        double theta1 = acos(dot(&ray->d,n));
+        if(theta1 > thetac){
+          //fprintf(stderr, "\nTOTAL INTERNAL");
+          refract->R = 0; 
+          refract->G = 0;
+          refract->B = 0;
+        }
+        else{
+          rayTrace(&refracted_ray, depth+1, refract, obj);
+          refract->R = (1 - obj->alpha)*refract->R; 
+          refract->G = (1 - obj->alpha)*refract->G;
+          refract->B = (1 - obj->alpha)*refract->B;
+        }
+      }
+      else {
+          rayTrace(&refracted_ray, depth+1, refract, obj);
+          refract->R = (1 - obj->alpha)*refract->R; 
+          refract->G = (1 - obj->alpha)*refract->G;
+          refract->B = (1 - obj->alpha)*refract->B;
+      }
+    }
+}
+
 
 void rtShade(struct object3D *obj, struct point3D *p, struct point3D *n, struct ray3D *ray, int depth, double a, double b, struct colourRGB *col)
 {
@@ -175,10 +285,11 @@ void rtShade(struct object3D *obj, struct point3D *p, struct point3D *n, struct 
   double a_int, b_int;
 
   // Setting local and global components
-  struct colourRGB local, global;
+  struct colourRGB local, global, reflect, refract;
   double ambient, distance;
   struct colourRGB diffuse, specular;
-
+  
+  // Iterating through light sources
   while(lightsource != NULL){
     struct point3D ls_dir = lightsource->p0;
     subVectors(p, &ls_dir);
@@ -209,8 +320,9 @@ void rtShade(struct object3D *obj, struct point3D *p, struct point3D *n, struct 
     lightsource = lightsource->next;
   }
   
+  // Getting soft shadows for area light sources
   struct object3D *curr_obj= object_list;
-  int K = 1000;
+  int K = 100;
   int k = 0;
   while(curr_obj != NULL){
     if(curr_obj->isLightSource){
@@ -262,35 +374,24 @@ void rtShade(struct object3D *obj, struct point3D *p, struct point3D *n, struct 
   }
 
   // SETTING GLOBAL COMPONENTS
+  // Global components = alpha * reflect + (1-alpha) * refraction
   if (depth < MAX_DEPTH)
-  {
-    // If object has specular components
-    if (obj->alb.rg != 0)
-    {
+  { 
+    refract.R = 0;
+    refract.G = 0;
+    refract.B = 0;
 
-      // Get mirror direction
-      struct ray3D mirror;
+    reflect.R = 0;
+    reflect.G = 0;
+    reflect.B = 0;
 
-      mirror.p0 = *p;
-      mirror.d.px = ray->d.px + (-2 * dot(n, &ray->d)) * n->px;
-      mirror.d.py = ray->d.py + (-2 * dot(n, &ray->d)) * n->py;
-      mirror.d.pz = ray->d.pz + (-2 * dot(n, &ray->d)) * n->pz;
-      mirror.d.pw = 1;
-
-      // Update global initial value
-      global.R = 0;
-      global.G = 0;
-      global.B = 0;
-
-      // Tracing the new mirror ray
-      rayTrace(&mirror, depth + 1, &global, obj);
-
-      // Updating the Ispec term
-      global.R = obj->alb.rg * global.R;
-      global.G = obj->alb.rg * global.G;
-      global.B = obj->alb.rg * global.B;
-    }
+    refraction(obj, p, n, ray, &refract, &reflect, depth);
+    // Set global based on reflection and refraction term
+    global.R = reflect.R + refract.R; 
+    global.G = reflect.G + refract.G; 
+    global.B = reflect.B + refract.B; 
   }
+  
 
   // Setting limit to local and global components = 1
   col->R = (local.R + global.R <= 1) ? local.R + global.R : 1;
