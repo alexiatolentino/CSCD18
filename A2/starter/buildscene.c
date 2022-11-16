@@ -32,7 +32,7 @@
  // with some transformations.
 
  // Note the parameters: ra, rd, rs, rg, R, G, B, alpha, r_index, and shinyness)
- 
+
  //HEAD OF DOG
  //back ear
  o=newSphere(.05,.95,.5,.5,0.63,.12,.94,1,1,6);		// Initialize a sphere
@@ -41,7 +41,7 @@
  //RotateZ(o,-PI/1.49);
  RotateZ(o,-PI/1.9);
  invert(&o->T[0][0],&o->Tinv[0][0]);			// Compute the inverse transform * DON'T FORGET TO DO THIS! *
- loadTexture(o,"./Texture/wavy.ppm",1,&texture_list);
+ //loadTexture(o,"./Texture/wavy.ppm",1,&texture_list);
  insertObject(o,&object_list);
  
  //front ear
@@ -50,7 +50,7 @@
  Translate(o,-3.45,1.35,1.4);
  RotateZ(o,-PI/1.9);
  invert(&o->T[0][0],&o->Tinv[0][0]);			// Compute the inverse transform * DON'T FORGET TO DO THIS! *
- loadTexture(o,"./Texture/wavy.ppm",1,&texture_list);
+ //loadTexture(o,"./Texture/wavy.ppm",1,&texture_list);
  insertObject(o,&object_list);
 
 
@@ -60,7 +60,7 @@
  Translate(o,-1.2,1.35,1.7);
  RotateZ(o,-PI/1.9);
  invert(&o->T[0][0],&o->Tinv[0][0]);			// Compute the inverse transform * DON'T FORGET TO DO THIS! *
- loadTexture(o,"./Texture/wavy.pgm",3,&texture_list);
+ //loadTexture(o,"./Texture/wavy.pgm",3,&texture_list);
  insertObject(o,&object_list);
 
  
@@ -70,22 +70,22 @@
  Translate(o,-2.5,-2,1.4);
  RotateZ(o,PI);
  invert(&o->T[0][0],&o->Tinv[0][0]);	
- loadTexture(o,"./Texture/wavy.ppm",1,&texture_list);
+ //loadTexture(o,"./Texture/wavy.ppm",1,&texture_list);
  insertObject(o,&object_list);	
 
 
  //TAIL OF DOG
- o=newSphere(.05,.95,.5,.5,0.63,.12,.94,0.5,1.5,6);		// Initialize a sphere
+ o=newSphere(.05,.95,.5,.5,0.63,.12,.94,0.5,.5,6);		// Initialize a sphere
  Scale(o,1.1,.5,.25);				// Apply a few transforms (Translate * Rotate * Scale)			
  Translate(o,1.7,2.05,0.9);
  RotateZ(o,PI/1.5);
  invert(&o->T[0][0],&o->Tinv[0][0]);			// Compute the inverse transform * DON'T FORGET TO DO THIS! *
- loadTexture(o,"./Texture/wavy.ppm",1,&texture_list);
+ //loadTexture(o,"./Texture/wavy.ppm",1,&texture_list);
  insertObject(o,&object_list);
 
  //body
- o=newSphere(.05,.95,.5,.5,0.63,.12,.94,0.5,1.5,6);		// Initialize a sphere
- Scale(o,1.7,.6,.3);					// Apply a few transforms (Translate * Rotate * Scale)			
+ o=newSphere(.05,.95,.5,.5,0.63,.12,.94,0.5,.5,6);		// Initialize a sphere
+ //Scale(o,1.7,.6,.3);					// Apply a few transforms (Translate * Rotate * Scale)			
  Translate(o,-.1,-.4,1.2);
  RotateY(o,-PI/20);
  invert(&o->T[0][0],&o->Tinv[0][0]);	
@@ -98,7 +98,7 @@
  Translate(o,2.1,1,1.4);
  RotateZ(o,-2*PI/6);
  invert(&o->T[0][0],&o->Tinv[0][0]);			// Compute the inverse transform * DON'T FORGET TO DO THIS! *
- loadTexture(o,"./Texture/wavy.ppm",1,&texture_list);
+ //loadTexture(o,"./Texture/wavy.ppm",1,&texture_list);
  insertObject(o,&object_list);
 
  o=newSphere(.05,.95,.5,.5,0.63,.12,.94,0.5,1.5,6);		// Initialize a sphere
@@ -108,21 +108,21 @@
  Translate(o,-2.7,1.3,0.9);
  RotateZ(o,2*PI/6);
  invert(&o->T[0][0],&o->Tinv[0][0]);			// Compute the inverse transform * DON'T FORGET TO DO THIS! *
- loadTexture(o,"./Texture/wavy.ppm",1,&texture_list);
+ //loadTexture(o,"./Texture/wavy.ppm",1,&texture_list);
  insertObject(o,&object_list);
 
 
 
- // If needed, this is how you load a texture map
- // loadTexture(o,"./Texture/mosaic2.ppm",1,&texture_list);	// This loads a texture called 'mosaic2.ppm'. The
+ // If needed, this is how you //load a texture map
+ // //loadTexture(o,"./Texture/mosaic2.ppm",1,&texture_list);	// This //loads a texture called 'mosaic2.ppm'. The
 								// texture gets added to the texture list, and a
 								// pointer to it is stored within this object in the
 								// corresponding place. The '1' indicates this image
-								// will be used as a texture map. Use '2' to load
-								// an image as a normal map, and '3' to load an
+								// will be used as a texture map. Use '2' to //load
+								// an image as a normal map, and '3' to //load an
 								// alpha map. Texture and normal maps are RGB .ppm
 								// files, alpha maps are grayscale .pgm files.
-								// * DO NOT * try to free image data loaded in this
+								// * DO NOT * try to free image data //loaded in this
 								// way, the cleanup function already provided will do
 								// this at the end.
  
@@ -137,7 +137,7 @@
  RotateX(o,PI/2);
  Translate(o,0,-4,5);
  invert(&o->T[0][0],&o->Tinv[0][0]);
- loadTexture(o,"./Texture/wavy.ppm",1,&texture_list);
+ //loadTexture(o,"./Texture/wavy.ppm",1,&texture_list);
  insertObject(o,&object_list);
 
 
@@ -147,6 +147,13 @@
  p.px=0;
  p.py=25.5;
  p.pz=-3.5;
+ p.pw=1;
+ l=newPLS(&p,.95,.95,.95);
+ insertPLS(l,&light_list);
+
+ p.px=0;
+ p.py=25.5;
+ p.pz=0;
  p.pw=1;
  l=newPLS(&p,.95,.95,.95);
  insertPLS(l,&light_list);

@@ -213,7 +213,7 @@ struct object3D *newPlane(double ra, double rd, double rs, double rg, double r, 
     memcpy(&plane->Tinv[0][0], &eye4x4[0][0], 16 * sizeof(double));
     plane->textureMap = &texMap;
     plane->frontAndBack = 1;
-    plane->photonMapped = 0;
+    plane->photonMapped = 1;
     plane->normalMapped = 0;
     plane->isCSG = 0;
     plane->isLightSource = 0;
@@ -261,7 +261,7 @@ struct object3D *newSphere(double ra, double rd, double rs, double rg, double r,
     memcpy(&sphere->Tinv[0][0], &eye4x4[0][0], 16 * sizeof(double));
     sphere->textureMap = &texMap;
     sphere->frontAndBack = 0;
-    sphere->photonMapped = 0;
+    sphere->photonMapped = 1;
     sphere->normalMapped = 0;
     sphere->isCSG = 0;
     sphere->isLightSource = 0;
@@ -302,7 +302,7 @@ struct object3D *newCyl(double ra, double rd, double rs, double rg, double r, do
     memcpy(&cyl->Tinv[0][0], &eye4x4[0][0], 16 * sizeof(double));
     cyl->textureMap = &texMap;
     cyl->frontAndBack = 0;
-    cyl->photonMapped = 0;
+    cyl->photonMapped = 1;
     cyl->normalMapped = 0;
     cyl->isCSG = 0;
     cyl->isLightSource = 0;
@@ -1053,10 +1053,10 @@ void addAreaLight(double sx, double sy, double nx, double ny, double nz,
   struct object3D *areaLS;
 
   // Initiate all 
-  if (obj_type == 1){
+  if (obj_type == 0){
     areaLS=newPlane(1,1,1,1,r,g,b,1,1,0);
   }
-  else if (obj_type == 2){
+  else if (obj_type == 1){
     areaLS = newSphere(1,1,1,1,r,g,b,1,1,0);
   }
   else{
@@ -1078,9 +1078,9 @@ void addAreaLight(double sx, double sy, double nx, double ny, double nz,
     struct point3D origin;
     origin.pw = 1;   
 
-    if (obj_type == 1) {
+    if (obj_type == 0) {
       planeSample(areaLS, &origin.px, &origin.py, &origin.pz);
-    } else if (obj_type == 2) {
+    } else if (obj_type == 1) {
       sphereSample(areaLS, &origin.px, &origin.py, &origin.pz);
     } else{
       cylSample(areaLS, &origin.px, &origin.py, &origin.pz);
@@ -1493,7 +1493,43 @@ void nullSetupView(struct view *c, struct point3D *e, struct point3D *g, struct 
   c->W2C[2][3] = -e->pz;
   c->W2C[3][3] = 1;
 }
+/*
+// STACK FUNCTIONS TO USE FOR REFRACTION:       
 
+int isempty(int *top){
+   if(*top == -1)
+      return 1;
+   else
+      return 0;
+}
+   
+int isfull(int *top){
+   if(*top == 8)
+      return 1;
+   else
+      return 0;
+}
+
+void peek(int *top, double *data, double stack[8]){
+   *data = stack[*top];
+}
+
+void pop(int *top, double *data, double stack[8]){
+   if(!isempty(top)) {
+      *data = stack[*top];
+      *top = *top - 1;   
+   } else {
+      *data = 1;
+   }
+}
+
+void push(int *top, double data, double stack[8]){
+   if(!isfull(top)) {
+      *top = *top + 1;   
+      stack[*top] = data;
+   }
+}
+*/
 
 
 /////////////////////////////////////////

@@ -23,6 +23,7 @@
 
 #define PI 3.14159265354
 
+
 /* The structure below is used to hold a single RGB image. 'rgbdata' points */
 /* to an array of size sx*sy*[num layers] but note that your code must know */
 /* the data type for the array. Within the raytracer, there will be double  */
@@ -67,6 +68,14 @@ struct ray3D{
 	/* You may add data here to keep track of any values associated */
 	/* with this ray when implementing advanced raytracing features */
 	int inside;
+
+	double r_stack[8];
+	int r_top = -1;
+
+	// Functions needed to keep track of stack
+	void (*r_pop)(int *top, double *data, double stack[8]);
+	void (*r_push)(int *top, double data, double stack[8]);	
+	void (*r_peek)(int *top, double *data, double stack[8]);		
 };
 
 /*

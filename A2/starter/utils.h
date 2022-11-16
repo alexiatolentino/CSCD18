@@ -23,6 +23,16 @@
 #ifndef __utils_header
 #define __utils_header
 
+
+// STACK FUNCTIONS TO USE FOR REFRACTION:       
+/*
+int isempty(int *top);
+int isfull(int *top);
+void peek(int *top, double *data, double stack[8]);
+void pop(int *top, double *data, double stack[8]);
+void push(int *top, double data, double stack[8]);
+*/
+
 // Functions to apply transformations to objects.
 // If you add any transformations to the list below, document them carefully
 inline void matMult(double A[4][4], double B[4][4])
@@ -168,6 +178,13 @@ inline void initRay(struct ray3D *ray, struct point3D *p0, struct point3D *d)
  memcpy(&ray->p0,p0,sizeof(struct point3D));
  memcpy(&ray->d,d,sizeof(struct point3D));
  ray->rayPos=&rayPosition;
+
+ /*
+ ray->r_pop = &pop;
+ ray->r_push = &push;
+ ray->r_peek = &peek;
+ */
+ 
 }
 
 // Ray and normal transformations to enable the use of canonical intersection tests with transformed objects

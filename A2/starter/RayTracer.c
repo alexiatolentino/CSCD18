@@ -119,6 +119,50 @@ void phong(struct object3D *obj, struct point3D *p, struct point3D *n,
   }
 }
 
+// STACK FUNCTIONS TO USE FOR REFRACTION:
+//int top = -1;
+//double stack[8];
+
+int isempty(int *top){
+  if(*top == -1)
+      return 1;
+  else
+      return 0;
+}
+   
+int isfull(int *top){
+  if(*top == 8)
+    return 1;
+  else
+    return 0;
+}
+
+void peek(int *top, double *data, double stack[8]){
+  if(isempty(top)){
+    *data = 1;
+  }
+  else{
+     *data = stack[*top];
+  }
+}
+
+void pop(int *top, double *data, double stack[8]){
+  if(!isempty(top)) {
+    *data = stack[*top];
+    *top = *top - 1;   
+  } else {
+    *data = 1;
+  }
+}
+
+void push(int *top, double data, double stack[8]){
+  if(!isfull(top)) {
+    *top = *top + 1;   
+    stack[*top] = data;
+  }
+}
+
+
 void refraction(struct object3D *obj, struct point3D *p, struct point3D *n, struct ray3D *ray, struct colourRGB *refract, struct colourRGB *reflect, int depth, struct colourRGB *tmp_col){
   // If object has specular components
     if (obj->alb.rg != 0 && obj->isLightSource == 0){
@@ -136,6 +180,15 @@ void refraction(struct object3D *obj, struct point3D *p, struct point3D *n, stru
       reflect->G = 0;
       reflect->B = 0;
 
+      if(!isempty(&ray->r_top)){
+        //fprintf(stderr, "UNEMPTY STACK");
+        memcpy(ray->r_stack, mirror.r_stack, sizeof(ray->r_stack));
+        mirror.r_top = ray->r_top;
+      }
+      else{
+        mirror.r_top = -1;
+      }
+      
       // Tracing the new mirror ray
       rayTrace(&mirror, depth+1, reflect, obj);
 
@@ -155,32 +208,58 @@ void refraction(struct object3D *obj, struct point3D *p, struct point3D *n, stru
     if (obj->r_index != 1){
       struct ray3D refracted_ray;
       refracted_ray.p0 = *p;
-      //refracted_ray.d = *n;
       double n1, n2;
 
       struct point3D normal;
 
-      // Total 
-
-      if(ray->inside){
-        refracted_ray.inside = 0;
-        n1 = obj->r_index;
-        n2 = 1.0;
-        normal.px = -n->px;
-        normal.py = -n->py;
-        normal.pz = -n->pz;
-        normal.pw = 1;
-      }
-      else{
-        refracted_ray.inside = 1;
-        n1 = 1.0;
-        n2 = obj->r_index;
+      // Ray is entering a new object
+      if(dot(n, &ray->d)<0){
+        peek(&ray->r_top, &n1, ray->r_stack); //n1 = peek(ray);
+        n2 = obj->r_index; 
+        push(&ray->r_top, n2, ray->r_stack); 
         normal.px = n->px;
         normal.py = n->py;
         normal.pz = n->pz;
         normal.pw = 1;
       }
+      else{ // Exiting an object
+        pop(&ray->r_top, &n1, ray->r_stack); //n1 = pop(ray);
+        peek(&ray->r_top, &n2, ray->r_stack); //n2 = peek(ray); 
 
+        normal.px = -n->px;
+        normal.py = -n->py;
+        normal.pz = -n->pz;
+        normal.pw = 1;
+      }
+      
+      // NO EMBEDDED OBJECTS W REFRACTION
+      // if(dot(n, &ray->d)<0){
+      //   n1=1;
+      //   n2 = obj->r_index; 
+      //   normal.px = n->px;
+      //   normal.py = n->py;
+      //   normal.pz = n->pz;
+      //   normal.pw = 1;
+      // }
+      // else{ 
+      //   n1 = obj->r_index;
+      //   n2 = 1; 
+      //   normal.px = -n->px;
+      //   normal.py = -n->py;
+      //   normal.pz = -n->pz;
+      //   normal.pw = 1;
+      // }
+      
+      //Transfer r_stack from current ray onto the new refracted ray
+      if(!isempty(&ray->r_top)){
+        memcpy(ray->r_stack, refracted_ray.r_stack, sizeof(ray->r_stack));
+        refracted_ray.r_top = ray->r_top;
+        //fprintf(stderr, "THIS IS TOP: %d\n",refracted_ray.r_top);
+      }
+      else{
+        refracted_ray.r_top = -1;
+      }
+     
       struct point3D neg_norm;
       neg_norm.px = -n->px;
       neg_norm.py = -n->py;
@@ -200,31 +279,27 @@ void refraction(struct object3D *obj, struct point3D *p, struct point3D *n, stru
       rb.pz = r*ray->d.pz;
 
       // dt = rb + (rc - sqrt(1-r^2(1-c^2)))n
-      refracted_ray.d.px = rb.px + (r*c - sqrtl(1 - (pow(r,2) * (1 - pow(c,2))))) * normal.px;
-      refracted_ray.d.py = rb.py + (r*c - sqrtl(1 - (pow(r,2) * (1 - pow(c,2))))) * normal.py;
-      refracted_ray.d.pz = rb.pz + (r*c - sqrtl(1 - (pow(r,2) * (1 - pow(c,2))))) * normal.pz;
+      double inner_factor = 1 - (pow(r,2) * (1 - pow(c,2)));
+    
 
-      if (ray->inside && n1>n2){
-        double thetac = asin(n2/n1);
-        double theta1 = acos(dot(&ray->d,n));
-        if(theta1 > thetac){
-          //fprintf(stderr, "\nTOTAL INTERNAL");
-          refract->R = 0; 
-          refract->G = 0;
-          refract->B = 0;
-        }
-        else{
-          rayTrace(&refracted_ray, depth+1, refract, obj);
-          refract->R = (1 - obj->alpha)*refract->R; 
-          refract->G = (1 - obj->alpha)*refract->G;
-          refract->B = (1 - obj->alpha)*refract->B;
-        }
+      //Check for total internal reflection
+      if (inner_factor < 0){
+        refracted_ray.p0 = *p;
+
+        refracted_ray.d.px = rb.px + (r*c - sqrtl(inner_factor)) * normal.px;
+        refracted_ray.d.py = rb.py + (r*c - sqrtl(inner_factor)) * normal.py;
+        refracted_ray.d.pz = rb.pz + (r*c - sqrtl(inner_factor)) * normal.pz;
+          
+        rayTrace(&refracted_ray, depth+1, refract, obj);
+
+        refract->R = (1 - obj->alpha)*refract->R; 
+        refract->G = (1 - obj->alpha)*refract->G;
+        refract->B = (1 - obj->alpha)*refract->B;
       }
       else {
-          rayTrace(&refracted_ray, depth+1, refract, obj);
-          refract->R = (1 - obj->alpha)*refract->R; 
-          refract->G = (1 - obj->alpha)*refract->G;
-          refract->B = (1 - obj->alpha)*refract->B;
+        refract->R = 0; 
+        refract->G = 0;
+        refract->B = 0;
       }
     }
 }
@@ -282,7 +357,7 @@ void rtShade(struct object3D *obj, struct point3D *p, struct point3D *n, struct 
 
   // Test for intersection btwn ray and other objects in the scene
   double lambda = -1;
-  struct object3D *hitobj;
+  struct object3D *hitobj = (struct object3D*) calloc(1, sizeof(struct object3D*));
   struct point3D p_int, n_int;
   double a_int, b_int;
 
@@ -517,12 +592,205 @@ void rayTrace(struct ray3D *ray, int depth, struct colourRGB *col, struct object
   col->B = I.B;
 }
 
+//PHOTON MAPPING FORWARD photonMapped
+void forwardPass(int sx)  {
+  
+  //Setting up Iterator through objects to find als
+  struct object3D *obj = object_list;
+  while(obj!=NULL){
+
+    // If the object we are working on is an als
+    if (obj->isLightSource) {
+      
+      // Construct Photon Ray to be traced
+      struct ray3D *photon_ray = (struct ray3D *)calloc(1, sizeof(struct ray3D));
+      struct point3D *point = (struct point3D *)calloc(1, sizeof(struct point3D));
+
+      // Set up starting point
+      point->px = -1+2*((float)rand())/RAND_MAX;
+      point->py = -1+2*((float)rand())/RAND_MAX;
+      point->pz = 0;
+      point->pw = 1;
+      matVecMult(obj->T, point);
+
+      photon_ray->p0 = *point;
+
+      // Set up random direction within bounds
+      photon_ray->d.px = -1+2*((float)rand())/RAND_MAX;
+      photon_ray->d.py = -1+2*((float)rand())/RAND_MAX;
+      photon_ray->d.pz = -1+2*((float)rand())/RAND_MAX;
+      photon_ray->d.pw = 1;
+
+
+      // Set up parameter holders to use after finding first hit
+      double *lambda = (double *)calloc(1, sizeof(double));
+      *lambda = -1;
+      struct object3D *hitobj = (struct object3D *)calloc(1, sizeof(struct object3D));
+      struct point3D *p = (struct point3D *)calloc(1, sizeof(struct point3D));
+      struct point3D *n = (struct point3D *)calloc(1, sizeof(struct point3D)); 
+      double *a = (double *)calloc(1, sizeof(double));
+      double *b = (double *)calloc(1, sizeof(double));
+
+      // Set up colour holder to record photon colours
+      struct colourRGB *tmp_col = (struct colourRGB *)calloc(1, sizeof(struct colourRGB));
+
+      // Set up refraction indicator
+      int refracted = 0;
+      int depth = 0;
+
+      findFirstHit(photon_ray, lambda, obj, &hitobj, p, n, a, b);
+
+      // After finding first hit we iterate through until we hit a diffuse surface 
+      // (which must have first reflected or refracted)
+      while(depth<MAX_DEPTH && *lambda >= 0) {
+        // Conduct same code as refraction for the photon ray if we are dealing with 
+        // a refractive surface
+        if (obj->r_index != 1 && obj->alb.rd == 0 && lambda >= 0) {
+            refracted = 1;
+            //Check if refracting or reflecting
+            //Tracing refract:
+            if (obj->r_index != 1){
+              double n1, n2;
+              struct point3D normal;
+              
+              // Using method without multi-layer refraction
+              if(photon_ray->inside){
+                n1 = obj->r_index;
+                n2 = 1.0;
+                normal.px = -n->px;
+                normal.py = -n->py;
+                normal.pz = -n->pz;
+                normal.pw = 1;
+              }
+              else{
+                n1 = 1.0;
+                n2 = obj->r_index;
+                normal.px = n->px;
+                normal.py = n->py;
+                normal.pz = n->pz;
+                normal.pw = 1;
+              }
+
+              // Calculate refracted ray direction
+              struct point3D neg_norm;
+              neg_norm.px = -n->px;
+              neg_norm.py = -n->py;
+              neg_norm.pz = -n->pz;
+
+              // c is dot(-n, b)
+              double c;
+              c = dot(&neg_norm, &photon_ray->d);
+
+              double r;
+              r = n1/n2;
+
+              // rb
+              struct point3D rb;
+              rb.px = r*photon_ray->d.px;
+              rb.py = r*photon_ray->d.py;
+              rb.pz = r*photon_ray->d.pz;
+
+              // dt = rb + (rc - sqrt(1-r^2(1-c^2)))n
+              photon_ray->d.px = rb.px + (r*c - sqrtl(1 - (pow(r,2) * (1 - pow(c,2))))) * normal.px;
+              photon_ray->d.py = rb.py + (r*c - sqrtl(1 - (pow(r,2) * (1 - pow(c,2))))) * normal.py;
+              photon_ray->d.pz = rb.pz + (r*c - sqrtl(1 - (pow(r,2) * (1 - pow(c,2))))) * normal.pz;
+
+              // Trace new ray if we do not have total internal reflection
+              if (photon_ray->inside && n1>n2){
+                double thetac = asin(n2/n1);
+                double theta1 = acos(dot(&photon_ray->d,n));
+                if(theta1 > thetac){
+                  //fprintf(stderr, "\nTOTAL INTERNAL");
+                  tmp_col->R = 0; 
+                  tmp_col->G = 0;
+                  tmp_col->B = 0;
+                }
+                else{
+                  rayTrace(photon_ray, depth+1, tmp_col, obj);
+                  tmp_col->R += (1 - obj->alpha)*tmp_col->R; 
+                  tmp_col->G += (1 - obj->alpha)*tmp_col->G;
+                  tmp_col->B += (1 - obj->alpha)*tmp_col->B;
+                }
+              }
+            }
+            else {
+                rayTrace(photon_ray, depth+1, tmp_col, obj);
+                tmp_col->R += (1 - obj->alpha)*tmp_col->R; 
+                tmp_col->G += (1 - obj->alpha)*tmp_col->G;
+                tmp_col->B += (1 - obj->alpha)*tmp_col->B;
+            }
+
+            //Tracing reflection:
+            if (obj->alb.rg != 0 && obj->isLightSource == 0){
+              // Get mirror direction
+
+              photon_ray->p0 = *p;
+              photon_ray->d.px = photon_ray->d.px + (-2 * dot(n, &photon_ray->d)) * n->px;
+              photon_ray->d.py = photon_ray->d.py + (-2 * dot(n, &photon_ray->d)) * n->py;
+              photon_ray->d.pz = photon_ray->d.pz + (-2 * dot(n, &photon_ray->d)) * n->pz;
+              photon_ray->d.pw = 1;
+
+              // Tracing the new mirror ray
+              rayTrace(photon_ray, depth + 1, tmp_col, obj);
+             // Updating the Ispec term scaled by refl coeff
+              tmp_col->R = obj->alb.rg * tmp_col->R;
+              tmp_col->G = obj->alb.rg * tmp_col->G;
+              tmp_col->B = obj->alb.rg * tmp_col->B;
+            }
+            else{
+              tmp_col->R = 0; 
+              tmp_col->G = 0;
+              tmp_col->B = 0; 
+            }
+          }
+
+        // If we hit a diffuse object
+        if (obj->alb.rd > 0 && lambda >= 0) {
+          // If we already hit a refracted object
+          if (refracted == 1) {
+
+            // Map the photon
+            int photonMapped = obj->photonMapped;
+            struct image *img = obj->texImg;
+            unsigned char *rgbIm;
+            rgbIm=(unsigned char *)img ->rgbdata;
+
+            // If we are within the correct bounds
+            if ((*a) >= 0 && (*a) <= 1 && (*b) >= 0 && (*b) <= 1) {
+              int width_factor = sx - 1;
+              int height_factor = sx - 1;
+
+              double x = (*a) * (double)sx;
+              double y = (*b) * (double)sx;
+
+              int x_tl = floor(x);
+              int y_tl = floor(y);
+              
+              // Record colours rendered
+              rgbIm[3 * (y_tl * height_factor + (width_factor - x_tl)) + 0] = tmp_col->R;
+              rgbIm[3 * (y_tl * height_factor + (width_factor - x_tl)) + 1] = tmp_col->G;
+              rgbIm[3 * (y_tl * height_factor + (width_factor - x_tl)) + 2] = tmp_col->B;
+
+              // Output mapping
+              imageOutput(img, "photon_map.ppm");
+            }
+          }
+        }
+      }
+      // Increase depth so that we stop at some point
+      depth = depth + 1;
+    }
+    obj = obj->next;
+  }
+}
+
 int main(int argc, char *argv[])
 {
   // Main function for the raytracer. Parses input parameters,
   // sets up the initial blank image, and calls the functions
   // that set up the scene and do the raytracing.
   struct image *im;       // Will hold the raytraced image
+  struct image *photonMap;	// Will hold the raytraced image
   struct view *cam;       // Camera and view for this scene
   int sx;                 // Size of the raytraced image
   int antialiasing;       // Flag to determine whether antialiaing is enabled or disabled
@@ -588,6 +856,40 @@ int main(int argc, char *argv[])
   ///////////////////////////////////////////////////
   buildScene(); // Create a scene. This defines all the
                 // objects in the world of the raytracer
+
+  int photonMapped = 1;
+  struct object3D *obj= object_list;
+  
+  while(obj!=NULL){
+    photonMap=newImage(sx, sx);
+    rgbIm=(unsigned char *)photonMap->rgbdata;
+
+    // Setting up holders for colours on the map
+    for (j=0;j<sx;j++)	
+    {
+      for (i=0;i<sx;i++)
+      {
+        unsigned char R = (unsigned char)(255);
+        unsigned char G = (unsigned char)(255);
+        unsigned char B = (unsigned char)(255);
+
+        rgbIm[3*(j*photonMap->sx + (photonMap->sx - i))] = R;
+        rgbIm[3*(j*photonMap->sx + (photonMap->sx - i)) + 1] = G;
+        rgbIm[3*(j*photonMap->sx + (photonMap->sx - i)) + 2] = B;
+      }
+    }
+    
+    imageOutput(photonMap,"photonMap.ppm");
+    loadTexture(obj, "photonMap.ppm", 1, &texture_list);
+
+    photonMapped = photonMapped + 1;
+    obj = obj->next;
+  }
+
+  for (int r=0;r<10000;r++)
+  {
+    forwardPass(512);
+  }
 
   //////////////////////////////////////////
   // TO DO: For Assignment 2 you can use the setup
