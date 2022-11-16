@@ -41,6 +41,8 @@
  ********************************************************************************/
 
 #include "utils.h" // <-- This includes RayTracer.h
+#include <stdio.h>
+#include <stdlib.h>
 
 // A couple of global structures and data: An object list, a light list, and the
 // maximum recursion depth
@@ -117,7 +119,7 @@ void phong(struct object3D *obj, struct point3D *p, struct point3D *n,
   }
 }
 
-void refraction(struct object3D *obj, struct point3D *p, struct point3D *n, struct ray3D *ray, struct colourRGB *refract, struct colourRGB *reflect, int depth){
+void refraction(struct object3D *obj, struct point3D *p, struct point3D *n, struct ray3D *ray, struct colourRGB *refract, struct colourRGB *reflect, int depth, struct colourRGB *tmp_col){
   // If object has specular components
     if (obj->alb.rg != 0 && obj->isLightSource == 0){
       // Get mirror direction
@@ -138,9 +140,9 @@ void refraction(struct object3D *obj, struct point3D *p, struct point3D *n, stru
       rayTrace(&mirror, depth+1, reflect, obj);
 
       // Updating the Ispec term scaled by refl coeff
-      reflect->R = obj->alpha * obj->alb.rg * reflect->R;
-      reflect->G = obj->alpha * obj->alb.rg * reflect->G;
-      reflect->B = obj->alpha * obj->alb.rg * reflect->B;
+      reflect->R = obj->alb.rg * reflect->R;
+      reflect->G = obj->alb.rg * reflect->G;
+      reflect->B = obj->alb.rg * reflect->B;
 
     }
     else{
@@ -286,6 +288,15 @@ void rtShade(struct object3D *obj, struct point3D *p, struct point3D *n, struct 
 
   // Setting local and global components
   struct colourRGB local, global, reflect, refract;
+
+  global.R = 0;
+  global.G = 0;
+  global.B = 0;
+  
+  local.R = 0;
+  local.G = 0;
+  local.B = 0;
+
   double ambient, distance;
   struct colourRGB diffuse, specular;
   
@@ -385,13 +396,17 @@ void rtShade(struct object3D *obj, struct point3D *p, struct point3D *n, struct 
     reflect.G = 0;
     reflect.B = 0;
 
-    refraction(obj, p, n, ray, &refract, &reflect, depth);
+    refraction(obj, p, n, ray, &refract, &reflect, depth, &tmp_col);
     // Set global based on reflection and refraction term
     global.R = reflect.R + refract.R; 
     global.G = reflect.G + refract.G; 
     global.B = reflect.B + refract.B; 
   }
-  
+  else{
+    global.R = 0; 
+    global.G = 0; 
+    global.B = 0; 
+  } 
 
   // Setting limit to local and global components = 1
   col->R = (local.R + global.R <= 1) ? local.R + global.R : 1;
