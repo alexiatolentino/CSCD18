@@ -41,8 +41,6 @@
  ********************************************************************************/
 
 #include "utils.h" // <-- This includes RayTracer.h
-#include <stdio.h>
-#include <stdlib.h>
 
 // A couple of global structures and data: An object list, a light list, and the
 // maximum recursion depth
@@ -66,9 +64,7 @@ void buildScene(void)
 
   which is used by the regular rtShade
 */
-void phong(struct object3D *obj, struct point3D *p, struct point3D *n, 
-          struct ray3D *ray_ls, struct ray3D *ray, double *amb, 
-          struct colourRGB *diff, struct colourRGB *spec, double k)
+void phong(struct object3D *obj, struct point3D *p, struct point3D *n, struct ray3D *ray_ls, struct ray3D *ray, double *amb, struct colourRGB *diff, struct colourRGB *spec)
 {
   // Setting Ambient component
   *amb = obj->alb.ra;
@@ -96,214 +92,28 @@ void phong(struct object3D *obj, struct point3D *p, struct point3D *n,
   if (obj->frontAndBack == 0)
   {
     // Setting Diffuse component
-    diff->R = obj->alb.rd * light_list->col.R * max(0, dot(n, &ray_ls->d)) * k;
-    diff->G = obj->alb.rd * light_list->col.G * max(0, dot(n, &ray_ls->d)) * k;
-    diff->B = obj->alb.rd * light_list->col.B * max(0, dot(n, &ray_ls->d)) * k;
+    diff->R = obj->alb.rd * light_list->col.R * max(0, dot(n, &ray_ls->d));
+    diff->G = obj->alb.rd * light_list->col.G * max(0, dot(n, &ray_ls->d));
+    diff->B = obj->alb.rd * light_list->col.B * max(0, dot(n, &ray_ls->d));
 
     // Setting Specular component
-    spec->R = obj->alb.rs * light_list->col.R * pow(max(0, dot(&c_dir, &m_dir)), obj->shinyness) * k;
-    spec->G = obj->alb.rs * light_list->col.G * pow(max(0, dot(&c_dir, &m_dir)), obj->shinyness) * k;
-    spec->B = obj->alb.rs * light_list->col.B * pow(max(0, dot(&c_dir, &m_dir)), obj->shinyness) * k;
+    spec->R = obj->alb.rs * light_list->col.R * pow(max(0, dot(&c_dir, &m_dir)), obj->shinyness);
+    spec->G = obj->alb.rs * light_list->col.G * pow(max(0, dot(&c_dir, &m_dir)), obj->shinyness);
+    spec->B = obj->alb.rs * light_list->col.B * pow(max(0, dot(&c_dir, &m_dir)), obj->shinyness);
   }
   else
   {
     // Setting diffuse component
-    diff->R = obj->alb.rd * light_list->col.R * max(0, abs(dot(n, &ray_ls->d))) * k;
-    diff->G = obj->alb.rd * light_list->col.G * max(0, abs(dot(n, &ray_ls->d))) * k;
-    diff->B = obj->alb.rd * light_list->col.B * max(0, abs(dot(n, &ray_ls->d))) * k;
+    diff->R = obj->alb.rd * light_list->col.R * max(0, abs(dot(n, &ray_ls->d)));
+    diff->G = obj->alb.rd * light_list->col.G * max(0, abs(dot(n, &ray_ls->d)));
+    diff->B = obj->alb.rd * light_list->col.B * max(0, abs(dot(n, &ray_ls->d)));
 
     // Setting Specular component
-    spec->R = obj->alb.rs * light_list->col.R * pow(max(0, abs(dot(&c_dir, &m_dir))), obj->shinyness) * k;
-    spec->G = obj->alb.rs * light_list->col.G * pow(max(0, abs(dot(&c_dir, &m_dir))), obj->shinyness) * k;
-    spec->B = obj->alb.rs * light_list->col.B * pow(max(0, abs(dot(&c_dir, &m_dir))), obj->shinyness) * k;
+    spec->R = obj->alb.rs * light_list->col.R * pow(max(0, abs(dot(&c_dir, &m_dir))), obj->shinyness);
+    spec->G = obj->alb.rs * light_list->col.G * pow(max(0, abs(dot(&c_dir, &m_dir))), obj->shinyness);
+    spec->B = obj->alb.rs * light_list->col.B * pow(max(0, abs(dot(&c_dir, &m_dir))), obj->shinyness);
   }
 }
-
-// STACK FUNCTIONS TO USE FOR REFRACTION:
-//int top = -1;
-//double stack[8];
-
-int isempty(int *top){
-  if(*top == -1)
-      return 1;
-  else
-      return 0;
-}
-   
-int isfull(int *top){
-  if(*top == 8)
-    return 1;
-  else
-    return 0;
-}
-
-void peek(int *top, double *data, double stack[8]){
-  if(isempty(top)){
-    *data = 1;
-  }
-  else{
-     *data = stack[*top];
-  }
-}
-
-void pop(int *top, double *data, double stack[8]){
-  if(!isempty(top)) {
-    *data = stack[*top];
-    *top = *top - 1;   
-  } else {
-    *data = 1;
-  }
-}
-
-void push(int *top, double data, double stack[8]){
-  if(!isfull(top)) {
-    *top = *top + 1;   
-    stack[*top] = data;
-  }
-}
-
-
-void refraction(struct object3D *obj, struct point3D *p, struct point3D *n, struct ray3D *ray, struct colourRGB *refract, struct colourRGB *reflect, int depth, struct colourRGB *tmp_col){
-  // If object has specular components
-    if (obj->alb.rg != 0 && obj->isLightSource == 0){
-      // Get mirror direction
-      struct ray3D mirror;
-
-      mirror.p0 = *p;
-      mirror.d.px = ray->d.px + (-2 * dot(n, &ray->d)) * n->px;
-      mirror.d.py = ray->d.py + (-2 * dot(n, &ray->d)) * n->py;
-      mirror.d.pz = ray->d.pz + (-2 * dot(n, &ray->d)) * n->pz;
-      mirror.d.pw = 1;
-
-      // Update global initial value
-      reflect->R = 0;
-      reflect->G = 0;
-      reflect->B = 0;
-
-      if(!isempty(&ray->r_top)){
-        //fprintf(stderr, "UNEMPTY STACK");
-        memcpy(ray->r_stack, mirror.r_stack, sizeof(ray->r_stack));
-        mirror.r_top = ray->r_top;
-      }
-      else{
-        mirror.r_top = -1;
-      }
-      
-      // Tracing the new mirror ray
-      rayTrace(&mirror, depth+1, reflect, obj);
-
-      // Updating the Ispec term scaled by refl coeff
-      reflect->R = obj->alb.rg * reflect->R;
-      reflect->G = obj->alb.rg * reflect->G;
-      reflect->B = obj->alb.rg * reflect->B;
-
-    }
-    else{
-      reflect->R = 0; 
-      reflect->G = 0;
-      reflect->B = 0; 
-    }
-    
-    // If the object is refractive  (has index of refraction)
-    if (obj->r_index != 1){
-      struct ray3D refracted_ray;
-      refracted_ray.p0 = *p;
-      double n1, n2;
-
-      struct point3D normal;
-
-      // Ray is entering a new object
-      if(dot(n, &ray->d)<0){
-        peek(&ray->r_top, &n1, ray->r_stack); //n1 = peek(ray);
-        n2 = obj->r_index; 
-        push(&ray->r_top, n2, ray->r_stack); 
-        normal.px = n->px;
-        normal.py = n->py;
-        normal.pz = n->pz;
-        normal.pw = 1;
-      }
-      else{ // Exiting an object
-        pop(&ray->r_top, &n1, ray->r_stack); //n1 = pop(ray);
-        peek(&ray->r_top, &n2, ray->r_stack); //n2 = peek(ray); 
-
-        normal.px = -n->px;
-        normal.py = -n->py;
-        normal.pz = -n->pz;
-        normal.pw = 1;
-      }
-      
-      // NO EMBEDDED OBJECTS W REFRACTION
-      // if(dot(n, &ray->d)<0){
-      //   n1=1;
-      //   n2 = obj->r_index; 
-      //   normal.px = n->px;
-      //   normal.py = n->py;
-      //   normal.pz = n->pz;
-      //   normal.pw = 1;
-      // }
-      // else{ 
-      //   n1 = obj->r_index;
-      //   n2 = 1; 
-      //   normal.px = -n->px;
-      //   normal.py = -n->py;
-      //   normal.pz = -n->pz;
-      //   normal.pw = 1;
-      // }
-      
-      //Transfer r_stack from current ray onto the new refracted ray
-      if(!isempty(&ray->r_top)){
-        memcpy(ray->r_stack, refracted_ray.r_stack, sizeof(ray->r_stack));
-        refracted_ray.r_top = ray->r_top;
-        //fprintf(stderr, "THIS IS TOP: %d\n",refracted_ray.r_top);
-      }
-      else{
-        refracted_ray.r_top = -1;
-      }
-     
-      struct point3D neg_norm;
-      neg_norm.px = -n->px;
-      neg_norm.py = -n->py;
-      neg_norm.pz = -n->pz;
-
-      // c is dot(-n, b)
-      double c;
-      c = dot(&neg_norm, &ray->d);
-
-      double r;
-      r = n1/n2;
-
-      // rb
-      struct point3D rb;
-      rb.px = r*ray->d.px;
-      rb.py = r*ray->d.py;
-      rb.pz = r*ray->d.pz;
-
-      // dt = rb + (rc - sqrt(1-r^2(1-c^2)))n
-      double inner_factor = 1 - (pow(r,2) * (1 - pow(c,2)));
-    
-
-      //Check for total internal reflection
-      if (inner_factor < 0){
-        refracted_ray.p0 = *p;
-
-        refracted_ray.d.px = rb.px + (r*c - sqrtl(inner_factor)) * normal.px;
-        refracted_ray.d.py = rb.py + (r*c - sqrtl(inner_factor)) * normal.py;
-        refracted_ray.d.pz = rb.pz + (r*c - sqrtl(inner_factor)) * normal.pz;
-          
-        rayTrace(&refracted_ray, depth+1, refract, obj);
-
-        refract->R = (1 - obj->alpha)*refract->R; 
-        refract->G = (1 - obj->alpha)*refract->G;
-        refract->B = (1 - obj->alpha)*refract->B;
-      }
-      else {
-        refract->R = 0; 
-        refract->G = 0;
-        refract->B = 0;
-      }
-    }
-}
-
 
 void rtShade(struct object3D *obj, struct point3D *p, struct point3D *n, struct ray3D *ray, int depth, double a, double b, struct colourRGB *col)
 {
@@ -353,135 +163,70 @@ void rtShade(struct object3D *obj, struct point3D *p, struct point3D *n, struct 
   // Be sure to update 'col' with the final colour computed here!
   // Initialize ray from intersection to light source
   struct ray3D ray_ls;
-  
+  struct point3D ls_dir = lightsource->p0;
+  subVectors(p, &ls_dir);
+  initRay(&ray_ls, p, &ls_dir);
 
   // Test for intersection btwn ray and other objects in the scene
   double lambda = -1;
-  struct object3D *hitobj = (struct object3D*) calloc(1, sizeof(struct object3D*));
+  struct object3D *hitobj;
   struct point3D p_int, n_int;
   double a_int, b_int;
 
+  findFirstHit(&ray_ls, &lambda, obj, &hitobj, &p_int, &n_int, &a_int, &b_int);
+
   // Setting local and global components
-  struct colourRGB local, global, reflect, refract;
-
-  global.R = 0;
-  global.G = 0;
-  global.B = 0;
-  
-  local.R = 0;
-  local.G = 0;
-  local.B = 0;
-
-  double ambient, distance;
+  struct colourRGB local, global;
+  double ambient;
   struct colourRGB diffuse, specular;
-  
-  // Iterating through light sources
-  while(lightsource != NULL){
-    struct point3D ls_dir = lightsource->p0;
-    subVectors(p, &ls_dir);
 
-    distance = length(&ls_dir);
-    normalize(&ls_dir);
-
-    initRay(&ray_ls, p, &ls_dir);
-    ray_ls.inside = 0;
-
-    findFirstHit(&ray_ls, &lambda, obj, &hitobj, &p_int, &n_int, &a_int, &b_int);
-
-    lambda = lambda/distance;
-
-    if (lambda > 0 && lambda < 1){
-      // Ambient term
-      local.R = obj->alb.ra;
-      local.G = obj->alb.ra;
-      local.B = obj->alb.ra;
-    }
-    else{
-      // Use Phong model to determine local components
-      phong(obj, p, n, &ray_ls, ray, &ambient, &diffuse, &specular, 1);
-      local.R = R * (ambient + diffuse.R) + specular.R;
-      local.G = G * (ambient + diffuse.G) + specular.G;
-      local.B = B * (ambient + diffuse.B) + specular.B;
-    }
-    lightsource = lightsource->next;
+  // SETTING LOCAL COMPONENTS
+  if (lambda > 0 && lambda < 1)
+  {
+    // Ambient term
+    local.R = obj->alb.ra;
+    local.G = obj->alb.ra;
+    local.B = obj->alb.ra;
   }
-  
-  // Getting soft shadows for area light sources
-  struct object3D *curr_obj= object_list;
-  int K = 100;
-  int k = 0;
-  while(curr_obj != NULL){
-    if(curr_obj->isLightSource){
-      k = 0;
-      //sample K points
-      for (int j = 0; j < K; j++) {
-        lambda = -1;
-        struct point3D shadow;
-        (*curr_obj->randomPoint)(curr_obj, &shadow.px, &shadow.py, &shadow.pz);
-        shadow.pw = 1;
-
-        ray_ls.d.px = shadow.px - p->px;
-        ray_ls.d.py = shadow.py - p->py;
-        ray_ls.d.pz = shadow.pz - p->pz;
-        ray_ls.d.pw = 1;
-        //subVectors(p, &ray_ls.p0); // switching
-
-        distance = length(&ray_ls.d);
-        normalize(&ray_ls.d);
-        ray_ls.inside = 0;
-
-        findFirstHit(&ray_ls, &lambda, curr_obj, &hitobj, &p_int, &n_int, &a_int, &b_int);
-
-        lambda = lambda/distance;
-
-        if(lambda < 0 || lambda > 1 || hitobj->isLightSource == 1){
-          k+=1;
-        }
-      } 
-      // SETTING LOCAL COMPONENTS
-      if (lambda > 0 && lambda < 1)
-      {
-        //obj->textureMap(obj->texImg, a, b, &ct.R, &ct.G, &ct.B);
-        // Ambient term
-        local.R = obj->alb.ra;
-        local.G = obj->alb.ra;
-        local.B = obj->alb.ra;
-      }
-      else
-      {
-        // Use Phong model to determine local components
-        phong(obj, p, n, &ray_ls, ray, &ambient, &diffuse, &specular, k/K);
-        local.R += R * (ambient + diffuse.R) + specular.R;
-        local.G += G * (ambient + diffuse.G) + specular.G;
-        local.B += B * (ambient + diffuse.B) + specular.B;
-      }
-    }
-    curr_obj = curr_obj->next;
+  else
+  {
+    // Use Phong model to determine local components
+    phong(obj, p, n, &ray_ls, ray, &ambient, &diffuse, &specular);
+    local.R = R * (ambient + diffuse.R) + specular.R;
+    local.G = G * (ambient + diffuse.G) + specular.G;
+    local.B = B * (ambient + diffuse.B) + specular.B;
   }
 
   // SETTING GLOBAL COMPONENTS
-  // Global components = alpha * reflect + (1-alpha) * refraction
   if (depth < MAX_DEPTH)
-  { 
-    refract.R = 0;
-    refract.G = 0;
-    refract.B = 0;
+  {
+    // If object has specular components
+    if (obj->alb.rg != 0)
+    {
 
-    reflect.R = 0;
-    reflect.G = 0;
-    reflect.B = 0;
+      // Get mirror direction
+      struct ray3D mirror;
 
-    refraction(obj, p, n, ray, &refract, &reflect, depth, &tmp_col);
-    // Set global based on reflection and refraction term
-    global.R = reflect.R + refract.R; 
-    global.G = reflect.G + refract.G; 
-    global.B = reflect.B + refract.B; 
+      mirror.p0 = *p;
+      mirror.d.px = ray->d.px + (-2 * dot(n, &ray->d)) * n->px;
+      mirror.d.py = ray->d.py + (-2 * dot(n, &ray->d)) * n->py;
+      mirror.d.pz = ray->d.pz + (-2 * dot(n, &ray->d)) * n->pz;
+      mirror.d.pw = 1;
+
+      // Update global initial value
+      global.R = 0;
+      global.G = 0;
+      global.B = 0;
+
+      // Tracing the new mirror ray
+      rayTrace(&mirror, depth + 1, &global, obj);
+
+      // Updating the Ispec term
+      global.R = obj->alb.rg * global.R;
+      global.G = obj->alb.rg * global.G;
+      global.B = obj->alb.rg * global.B;
+    }
   }
-  else{
-    global.R = 0; 
-    global.G = 0; 
-    global.B = 0; 
-  } 
 
   // Setting limit to local and global components = 1
   col->R = (local.R + global.R <= 1) ? local.R + global.R : 1;
@@ -490,7 +235,6 @@ void rtShade(struct object3D *obj, struct point3D *p, struct point3D *n, struct 
 
   return;
 }
-
 
 void findFirstHit(struct ray3D *ray, double *lambda, struct object3D *Os, struct object3D **obj, struct point3D *p, struct point3D *n, double *a, double *b)
 {
@@ -592,205 +336,12 @@ void rayTrace(struct ray3D *ray, int depth, struct colourRGB *col, struct object
   col->B = I.B;
 }
 
-//PHOTON MAPPING FORWARD photonMapped
-void forwardPass(int sx)  {
-  
-  //Setting up Iterator through objects to find als
-  struct object3D *obj = object_list;
-  while(obj!=NULL){
-
-    // If the object we are working on is an als
-    if (obj->isLightSource) {
-      
-      // Construct Photon Ray to be traced
-      struct ray3D *photon_ray = (struct ray3D *)calloc(1, sizeof(struct ray3D));
-      struct point3D *point = (struct point3D *)calloc(1, sizeof(struct point3D));
-
-      // Set up starting point
-      point->px = -1+2*((float)rand())/RAND_MAX;
-      point->py = -1+2*((float)rand())/RAND_MAX;
-      point->pz = 0;
-      point->pw = 1;
-      matVecMult(obj->T, point);
-
-      photon_ray->p0 = *point;
-
-      // Set up random direction within bounds
-      photon_ray->d.px = -1+2*((float)rand())/RAND_MAX;
-      photon_ray->d.py = -1+2*((float)rand())/RAND_MAX;
-      photon_ray->d.pz = -1+2*((float)rand())/RAND_MAX;
-      photon_ray->d.pw = 1;
-
-
-      // Set up parameter holders to use after finding first hit
-      double *lambda = (double *)calloc(1, sizeof(double));
-      *lambda = -1;
-      struct object3D *hitobj = (struct object3D *)calloc(1, sizeof(struct object3D));
-      struct point3D *p = (struct point3D *)calloc(1, sizeof(struct point3D));
-      struct point3D *n = (struct point3D *)calloc(1, sizeof(struct point3D)); 
-      double *a = (double *)calloc(1, sizeof(double));
-      double *b = (double *)calloc(1, sizeof(double));
-
-      // Set up colour holder to record photon colours
-      struct colourRGB *tmp_col = (struct colourRGB *)calloc(1, sizeof(struct colourRGB));
-
-      // Set up refraction indicator
-      int refracted = 0;
-      int depth = 0;
-
-      findFirstHit(photon_ray, lambda, obj, &hitobj, p, n, a, b);
-
-      // After finding first hit we iterate through until we hit a diffuse surface 
-      // (which must have first reflected or refracted)
-      while(depth<MAX_DEPTH && *lambda >= 0) {
-        // Conduct same code as refraction for the photon ray if we are dealing with 
-        // a refractive surface
-        if (obj->r_index != 1 && obj->alb.rd == 0 && lambda >= 0) {
-            refracted = 1;
-            //Check if refracting or reflecting
-            //Tracing refract:
-            if (obj->r_index != 1){
-              double n1, n2;
-              struct point3D normal;
-              
-              // Using method without multi-layer refraction
-              if(photon_ray->inside){
-                n1 = obj->r_index;
-                n2 = 1.0;
-                normal.px = -n->px;
-                normal.py = -n->py;
-                normal.pz = -n->pz;
-                normal.pw = 1;
-              }
-              else{
-                n1 = 1.0;
-                n2 = obj->r_index;
-                normal.px = n->px;
-                normal.py = n->py;
-                normal.pz = n->pz;
-                normal.pw = 1;
-              }
-
-              // Calculate refracted ray direction
-              struct point3D neg_norm;
-              neg_norm.px = -n->px;
-              neg_norm.py = -n->py;
-              neg_norm.pz = -n->pz;
-
-              // c is dot(-n, b)
-              double c;
-              c = dot(&neg_norm, &photon_ray->d);
-
-              double r;
-              r = n1/n2;
-
-              // rb
-              struct point3D rb;
-              rb.px = r*photon_ray->d.px;
-              rb.py = r*photon_ray->d.py;
-              rb.pz = r*photon_ray->d.pz;
-
-              // dt = rb + (rc - sqrt(1-r^2(1-c^2)))n
-              photon_ray->d.px = rb.px + (r*c - sqrtl(1 - (pow(r,2) * (1 - pow(c,2))))) * normal.px;
-              photon_ray->d.py = rb.py + (r*c - sqrtl(1 - (pow(r,2) * (1 - pow(c,2))))) * normal.py;
-              photon_ray->d.pz = rb.pz + (r*c - sqrtl(1 - (pow(r,2) * (1 - pow(c,2))))) * normal.pz;
-
-              // Trace new ray if we do not have total internal reflection
-              if (photon_ray->inside && n1>n2){
-                double thetac = asin(n2/n1);
-                double theta1 = acos(dot(&photon_ray->d,n));
-                if(theta1 > thetac){
-                  //fprintf(stderr, "\nTOTAL INTERNAL");
-                  tmp_col->R = 0; 
-                  tmp_col->G = 0;
-                  tmp_col->B = 0;
-                }
-                else{
-                  rayTrace(photon_ray, depth+1, tmp_col, obj);
-                  tmp_col->R += (1 - obj->alpha)*tmp_col->R; 
-                  tmp_col->G += (1 - obj->alpha)*tmp_col->G;
-                  tmp_col->B += (1 - obj->alpha)*tmp_col->B;
-                }
-              }
-            }
-            else {
-                rayTrace(photon_ray, depth+1, tmp_col, obj);
-                tmp_col->R += (1 - obj->alpha)*tmp_col->R; 
-                tmp_col->G += (1 - obj->alpha)*tmp_col->G;
-                tmp_col->B += (1 - obj->alpha)*tmp_col->B;
-            }
-
-            //Tracing reflection:
-            if (obj->alb.rg != 0 && obj->isLightSource == 0){
-              // Get mirror direction
-
-              photon_ray->p0 = *p;
-              photon_ray->d.px = photon_ray->d.px + (-2 * dot(n, &photon_ray->d)) * n->px;
-              photon_ray->d.py = photon_ray->d.py + (-2 * dot(n, &photon_ray->d)) * n->py;
-              photon_ray->d.pz = photon_ray->d.pz + (-2 * dot(n, &photon_ray->d)) * n->pz;
-              photon_ray->d.pw = 1;
-
-              // Tracing the new mirror ray
-              rayTrace(photon_ray, depth + 1, tmp_col, obj);
-             // Updating the Ispec term scaled by refl coeff
-              tmp_col->R = obj->alb.rg * tmp_col->R;
-              tmp_col->G = obj->alb.rg * tmp_col->G;
-              tmp_col->B = obj->alb.rg * tmp_col->B;
-            }
-            else{
-              tmp_col->R = 0; 
-              tmp_col->G = 0;
-              tmp_col->B = 0; 
-            }
-          }
-
-        // If we hit a diffuse object
-        if (obj->alb.rd > 0 && lambda >= 0) {
-          // If we already hit a refracted object
-          if (refracted == 1) {
-
-            // Map the photon
-            int photonMapped = obj->photonMapped;
-            struct image *img = obj->texImg;
-            unsigned char *rgbIm;
-            rgbIm=(unsigned char *)img ->rgbdata;
-
-            // If we are within the correct bounds
-            if ((*a) >= 0 && (*a) <= 1 && (*b) >= 0 && (*b) <= 1) {
-              int width_factor = sx - 1;
-              int height_factor = sx - 1;
-
-              double x = (*a) * (double)sx;
-              double y = (*b) * (double)sx;
-
-              int x_tl = floor(x);
-              int y_tl = floor(y);
-              
-              // Record colours rendered
-              rgbIm[3 * (y_tl * height_factor + (width_factor - x_tl)) + 0] = tmp_col->R;
-              rgbIm[3 * (y_tl * height_factor + (width_factor - x_tl)) + 1] = tmp_col->G;
-              rgbIm[3 * (y_tl * height_factor + (width_factor - x_tl)) + 2] = tmp_col->B;
-
-              // Output mapping
-              imageOutput(img, "photon_map.ppm");
-            }
-          }
-        }
-      }
-      // Increase depth so that we stop at some point
-      depth = depth + 1;
-    }
-    obj = obj->next;
-  }
-}
-
 int main(int argc, char *argv[])
 {
   // Main function for the raytracer. Parses input parameters,
   // sets up the initial blank image, and calls the functions
   // that set up the scene and do the raytracing.
   struct image *im;       // Will hold the raytraced image
-  struct image *photonMap;	// Will hold the raytraced image
   struct view *cam;       // Camera and view for this scene
   int sx;                 // Size of the raytraced image
   int antialiasing;       // Flag to determine whether antialiaing is enabled or disabled
@@ -856,40 +407,6 @@ int main(int argc, char *argv[])
   ///////////////////////////////////////////////////
   buildScene(); // Create a scene. This defines all the
                 // objects in the world of the raytracer
-
-  int photonMapped = 1;
-  struct object3D *obj= object_list;
-  
-  while(obj!=NULL){
-    photonMap=newImage(sx, sx);
-    rgbIm=(unsigned char *)photonMap->rgbdata;
-
-    // Setting up holders for colours on the map
-    for (j=0;j<sx;j++)	
-    {
-      for (i=0;i<sx;i++)
-      {
-        unsigned char R = (unsigned char)(255);
-        unsigned char G = (unsigned char)(255);
-        unsigned char B = (unsigned char)(255);
-
-        rgbIm[3*(j*photonMap->sx + (photonMap->sx - i))] = R;
-        rgbIm[3*(j*photonMap->sx + (photonMap->sx - i)) + 1] = G;
-        rgbIm[3*(j*photonMap->sx + (photonMap->sx - i)) + 2] = B;
-      }
-    }
-    
-    imageOutput(photonMap,"photonMap.ppm");
-    loadTexture(obj, "photonMap.ppm", 1, &texture_list);
-
-    photonMapped = photonMapped + 1;
-    obj = obj->next;
-  }
-
-  for (int r=0;r<10000;r++)
-  {
-    forwardPass(512);
-  }
 
   //////////////////////////////////////////
   // TO DO: For Assignment 2 you can use the setup
@@ -1024,74 +541,46 @@ int main(int argc, char *argv[])
       mcw[3][3] = 1;
       nullSetupView(cam, &e, &g, &up, u, v, w);
 
+      // Setting camera point coordinates
+      struct point3D point_coord;
+      point_coord.px = cam->wl + du * i;
+      point_coord.py = cam->wt + dv * j;
+      point_coord.pz = -1;
+      point_coord.pw = 1;
 
-      //Setting dimension for antialiasing
-      int dimension;
-      if(antialiasing){
-        dimension = 3; 
-      }
-      else{
-        dimension = 1;
-      }
+      // Convert local point coordinate to world coordinate using conversion matrix
+      matVecMult(mcw, &point_coord);
+      addVectors(&e, &point_coord);
+      point_coord.pw = 1;
 
-      struct colourRGB fullcol;
-      fullcol.R = 0; fullcol.G = 0; fullcol.B = 0;
+      // Set direction vector for pixel ij
+      struct point3D dir;
+      dir.px = point_coord.px;
+      dir.py = point_coord.py;
+      dir.pz = point_coord.pz;
+      dir.pw = 1;
 
-      for(int k = 0; k < dimension; k++){
-        for(int n = 0; n < dimension; n++){
-          // Setting camera point coordinates
-          struct point3D point_coord;
-          point_coord.px = cam->wl + du * i + k*du/dimension;
-          point_coord.py = cam->wt + dv * j + n*dv/dimension;
-          point_coord.pz = cam->f; // changed to f bc we can now change camera pos
-          point_coord.pw = 1;
+      // Setting direction to be d-e
+      subVectors(&e, &dir);
+      dir.pw = 1;
+      normalize(&dir);
 
-          // Convert local point coordinate to world coordinate using conversion matrix
-          matVecMult(mcw, &point_coord);
-          addVectors(&e, &point_coord);
-          point_coord.pw = 1;
+      // Creating new ray
+      struct ray3D new_ray;
+      initRay(&new_ray, &point_coord, &dir);
 
-          // Set direction vector for pixel ij
-          struct point3D dir;
-          dir.px = point_coord.px;
-          dir.py = point_coord.py;
-          dir.pz = point_coord.pz;
-          dir.pw = 1;
+      // Setting initial colours
+      col.R = background.R;
+      col.G = background.G;
+      col.B = background.B;
 
-          // Setting direction to be d-e
-          subVectors(&e, &dir);
-          dir.pw = 1;
-          normalize(&dir);
-
-          // Creating new ray
-          struct ray3D new_ray;
-          initRay(&new_ray, &point_coord, &dir);
-
-          // Setting initial colours
-          col.R = background.R;
-          col.G = background.G;
-          col.B = background.B;
-
-          // Trace the new ray
-          rayTrace(&new_ray, 1, &col, NULL);
-
-          // Adjust full colour
-          fullcol.R += col.R;
-          fullcol.G += col.G;
-          fullcol.B += col.B;
-
-        }
-      }
-
-      // Final full color adjustment 
-      fullcol.R = fullcol.R/pow(dimension,2);
-      fullcol.G = fullcol.G/pow(dimension,2);
-      fullcol.B = fullcol.B/pow(dimension,2);
+      // Trace the new ray
+      rayTrace(&new_ray, 1, &col, NULL);
 
       // Setting img colour
-      rgbIm[3 * (j * im->sx + (im->sx - i)) + 0] = fullcol.R * 255;
-      rgbIm[3 * (j * im->sx + (im->sx - i)) + 1] = fullcol.G * 255;
-      rgbIm[3 * (j * im->sx + (im->sx - i)) + 2] = fullcol.B * 255;
+      rgbIm[3 * (j * im->sx + (im->sx - i)) + 0] = col.R * 255;
+      rgbIm[3 * (j * im->sx + (im->sx - i)) + 1] = col.G * 255;
+      rgbIm[3 * (j * im->sx + (im->sx - i)) + 2] = col.B * 255;
     } // end for i
   }   // end for j
 
