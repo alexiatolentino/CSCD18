@@ -16,18 +16,18 @@
 /*****************************************************************************
 * COMPLETE THIS TEXT BOX:
 *
-* 1) Student Name:		
-* 2) Student Name:		
+* 1) Student Name: Alexia Tolentino		
+* 2) Student Name: Reem Al Halabi
 *
-* 1) Student number:
-* 2) Student number:
+* 1) Student number: 1006293967
+* 2) Student number: 1006321927
 * 
-* 1) UtorID
-* 2) UtorID
+* 1) UtorID: tolent55
+* 2) UtorID alhala16
 * 
 * We hereby certify that the work contained here is our own
 *
-* ____________________             _____________________
+* __Alexia Tolentino__             __Reem Al Halabi____
 * (sign with your name)            (sign with your name)
 ********************************************************************************/
 
@@ -65,7 +65,39 @@ void findFirstHit(struct ray3D *ray, double *lambda, struct object3D *Os, struct
  // TO DO: Implement this function. See the notes for
  // reference of what to do in here
  /////////////////////////////////////////////////////////////
+// SETTING VARIABLES
+  *lambda = -1;
+  struct point3D intersection;
+  struct point3D norm;
+  double temp_lambda = *lambda;
+  double smallest_lambda = 10000;
 
+  // Copy current object
+  struct object3D *obj_clone = object_list;
+
+  // While we have an object in object list
+  while (obj_clone != NULL)
+  {
+    // If we're dealing with a new and diff object that our current
+    if (obj_clone != Os)
+    {
+      (*obj_clone->intersect)(obj_clone, ray, &temp_lambda, p, n, a, b);
+
+      // If temp lambda was set through the intersection
+      // If current lambda has not been set or temp lambda is better
+      if ((temp_lambda > 0) && (temp_lambda < smallest_lambda))
+      {
+        // Set values
+        intersection = *p;
+        norm = *n;
+        smallest_lambda = temp_lambda;
+        *lambda = temp_lambda;
+        *obj = obj_clone;
+      }
+    }
+    // Go to next object in linked list
+    obj_clone = obj_clone->next;
+  }
     
 }
 
