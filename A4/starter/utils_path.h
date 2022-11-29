@@ -197,6 +197,7 @@ void cylSample(struct object3D *plane, double *x, double *y, double *z);
 
 // Importance Sampling for BRDF of diffuse surfaces
 void cosWeightedSample(struct point3D *n, struct point3D *d);
+void randomSample(struct point3D *n, struct point3D *d);
 
 // Functions to compute intersections for objects.
 // You'll need to add code for these in utils.c

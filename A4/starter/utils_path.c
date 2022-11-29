@@ -93,37 +93,33 @@ inline void rayTransform(struct ray3D *ray_orig, struct ray3D *ray_transformed, 
   matVecMult(Tinv_l, &ray_transformed->d);
 
 }
-
 inline void normalTransform(struct point3D *n_orig, struct point3D *n_transformed, struct object3D *obj)
 {
  // Computes the normal at an affinely transformed point given the original normal and the
  // object's inverse transformation. From the notes:
  // n_transformed=A^-T*n normalized.
-
- ///////////////////////////////////////////
+  ///////////////////////////////////////////
  // TO DO: Complete this function
  ///////////////////////////////////////////
-// Setting transformed ray to be original ray
+ // Setting transformed ray to be original ray
   *n_transformed = *n_orig;
 
-  // Getting transpose of matrix
-  double obj_T[4][4];
+  //Transform matrix based T
+  n_transformed->px=obj->Tinv[0][0]*n_orig->px;
+  n_transformed->px+=obj->Tinv[1][0]*n_orig->py;
+  n_transformed->px+=obj->Tinv[2][0]*n_orig->pz;
 
-  for (int i = 0; i < 4; i++)
-  {
-    for (int j = 0; j < 4; j++)
-    {
-      obj_T[i][j] = obj->Tinv[j][i];
-    }
-  }
+  n_transformed->py=obj->Tinv[0][1]*n_orig->px;
+  n_transformed->py+=obj->Tinv[1][1]*n_orig->py;
+  n_transformed->py+=obj->Tinv[2][1]*n_orig->pz;
 
-  // Applying transformation
-  matVecMult(obj_T, n_transformed);
-
+  n_transformed->pz=obj->Tinv[0][2]*n_orig->px;
+  n_transformed->pz+=obj->Tinv[2][1]*n_orig->py;
+  n_transformed->pz+=obj->Tinv[2][2]*n_orig->pz;
+  
   // Normalize normal!
   normalize(n_transformed);
   n_transformed->pw = 1;
-
 }
 
 /////////////////////////////////////////////
@@ -264,7 +260,6 @@ struct object3D *newCyl(double diffPct, double reflPct, double tranPct, double r
   return (cyl); 
 }
 
-
 ///////////////////////////////////////////////////////////////////////////////////////
 // TO DO:
 //	Complete the functions that compute intersections for the canonical plane
@@ -304,6 +299,19 @@ void planeIntersect(struct object3D *plane, struct ray3D *ray, double *lambda, s
   // Transform the ray wrt plane's transformations
   rayTransform(ray, &rayclone, plane);
 
+  // normal is the opposite direction of the incoming ray in terms of z coord
+  if(rayclone.d.pz > 0){
+    og_n.px = 0;
+    og_n.py = 0;
+    og_n.pz = -1;
+    og_n.pw = 1;
+  }else{
+    og_n.px = 0;
+    og_n.py = 0;
+    og_n.pz = 1;
+    og_n.pw = 1;
+  }
+
   // p-a stored in origin
   subVectors(&rayclone.p0, &origin);
   *lambda = dot(&origin, &og_n) / dot(&rayclone.d, &og_n);
@@ -341,6 +349,7 @@ void planeIntersect(struct object3D *plane, struct ray3D *ray, double *lambda, s
     *b = -1;
   }  
 }
+
 
 void sphereIntersect(struct object3D *sphere, struct ray3D *ray, double *lambda, struct point3D *p, struct point3D *n, double *a, double *b)
 {
@@ -1741,4 +1750,3 @@ void cleanup(struct object3D *o_list, struct textureNode *t_list)
   t=u;
  }
 }
-

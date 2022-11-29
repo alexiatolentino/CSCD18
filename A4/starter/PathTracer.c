@@ -1,15 +1,12 @@
 /*
   CSC D18 - Path Tracer code.
-
   Derived from the ray tracer starter code. Most function 
   names are identical, though in practice the implementation
   should be much simpler!
-
   You only need to modify or add code in sections
   clearly marked "TO DO" - remember to check what
   functionality is actually needed for the corresponding
   assignment!
-
   Last updated: Aug. 2017   - F.J.E.
 */
 
@@ -45,7 +42,7 @@ int MAX_DEPTH;
 
 #include "buildScene.c"			// Import scene definition
 
-void findFirstHit(struct ray3D *ray, double *lambda, struct object3D *Os, struct object3D **obj, struct point3D *p, struct point3D *n, double *a, double *b, int hit_type)
+void findFirstHit(struct ray3D *ray, double *lambda, struct object3D *Os, struct object3D **obj, struct point3D *p, struct point3D *n, double *a, double *b, int *hit_type)
 {
  // Find the closest intersection between the ray and any objects in the scene.
  // Inputs:
@@ -61,16 +58,10 @@ void findFirstHit(struct ray3D *ray, double *lambda, struct object3D *Os, struct
  //   *n      -  A pointer to a 3D point structure so you can return the normal at the intersection point
  //   *a, *b  -  Pointers toward double variables so you can return the texture coordinates a,b at the intersection point
 
- /////////////////////////////////////////////////////////////
- // TO DO: Implement this function. See the notes for
- // reference of what to do in here
- /////////////////////////////////////////////////////////////
-// SETTING VARIABLES
   *lambda = -1;
   struct point3D intersection;
   struct point3D norm;
-  double temp_lambda = *lambda;
-  double smallest_lambda = 10000;
+  double smallest_lambda;
 
   // Copy current object
   struct object3D *obj_clone = object_list;
@@ -81,24 +72,23 @@ void findFirstHit(struct ray3D *ray, double *lambda, struct object3D *Os, struct
     // If we're dealing with a new and diff object that our current
     if (obj_clone != Os)
     {
-      (*obj_clone->intersect)(obj_clone, ray, &temp_lambda, p, n, a, b);
+      obj_clone->intersect(obj_clone, ray, &smallest_lambda, &intersection, &norm, a, b);
 
       // If temp lambda was set through the intersection
       // If current lambda has not been set or temp lambda is better
-      if ((temp_lambda > 0) && (temp_lambda < smallest_lambda))
-      {
+      if((*lambda < 0 || smallest_lambda < *lambda) && smallest_lambda > 0){
         // Set values
-        intersection = *p;
-        norm = *n;
-        smallest_lambda = temp_lambda;
-        *lambda = temp_lambda;
+        *p = intersection;
+        *n = norm;
+        *lambda = smallest_lambda;
         *obj = obj_clone;
 
+        //if we hit a light source
         if (obj_clone->isLightSource){
-          hit_type = 0;
+          *hit_type = 0;
         }
         else{
-          hit_type = 1;
+          *hit_type = 1;
         }
       }
     }
@@ -108,38 +98,172 @@ void findFirstHit(struct ray3D *ray, double *lambda, struct object3D *Os, struct
     
 }
 
+void PathTrace(struct ray3D *ray, int depth, struct colourRGB *col, struct object3D *Os, int CEL)
+{
+ // Trace one light path through the scene.
+ //
+ // Parameters:
+ //   *ray   -  A pointer to the ray being traced
+ //   depth  -  Current recursion depth for recursive raytracing
+ //   *col   - Pointer to an RGB colour structure so you can return the object colour
+ //            at the intersection point of this ray with the closest scene object.
+ //   *Os    - 'Object source' is a pointer to the object from which the ray 
+ //            originates so you can discard self-intersections due to numerical
+ //            errors. NULL for rays originating from the center of projection. 
 
-int explicitLS(struct ray3D *ray, struct point3D *old_p, struct point3D *old_n, struct object3D *obj, int hit_type){
+  double lambda;			// Lambda at intersection
+  double a, b;			// Texture coordinates
+  int hit_type = 0;
+  struct object3D *obj;		// Pointer to object at intersection
+  struct point3D p;		// Intersection point
+  struct point3D n;		// Normal at intersection
+  double R,G,B;			// Handy in case you need to keep track of some RGB colour value
+  double dice;			// Handy to keep a random value
+  struct ray3D *next_ray = (struct ray3D *)calloc(1, sizeof(struct ray3D));	// For the new ray to be used in recursive calls
+
+  dice = .5*drand48();
+  if (depth>MAX_DEPTH || dice > maximum(ray->R,ray->G,ray->B))	// Max recursion depth reached. Return black (no light coming into pixel from this path).
+  {
+    col->R=ray->Ir;	// These are accumulators, initialized at 0. Whenever we find a source of light these
+    col->G=ray->Ig;	// get incremented accordingly. At the end of the recursion, we return whatever light
+    col->B=ray->Ib;	// we accumulated into these three values.
+    return;
+  }
+
+  // Pointer to hit object
+  struct object3D *hitobj = (struct object3D *)calloc(1, sizeof(struct object3D));
+  findFirstHit(ray,&lambda,Os,&hitobj,&p,&n,&a,&b, &hit_type);
+  
+  // refractive flag
+  int isrefractive = -1;
+  // Check if it's in the viewplane/ we hit an object
+  if(lambda > 0){
+    if(hit_type == 1){
+      dice = drand48();
+      // hit an object - random sample
+      // Generate a random number
+      ray->R *= hitobj->col.R;
+      ray->G *= hitobj->col.G;
+      ray->B *= hitobj->col.B;
+      
+      if(dice > hitobj->diffPct){
+          if (dice < hitobj->tranPct / (hitobj->reflPct + hitobj->tranPct))
+          {
+            isrefractive = 1;
+          }
+      }
+      struct point3D new_dir;
+      // BRDF 
+      if(dice < hitobj->diffPct){
+        cosWeightedSample(&n,&new_dir);
+        CEL = explicitLS(ray, &p,&n, hitobj, &hit_type);
+        ray->R*=dot(&n,&new_dir);
+        ray->G*=dot(&n,&new_dir);
+        ray->B*=dot(&n,&new_dir);
+      }
+      // Reflection
+      else{
+        // Perfect Reflection
+        new_dir.px = ray->d.px - (2*dot(&ray->d,&n)*(n.px)); 
+        new_dir.py = ray->d.py - (2*dot(&ray->d,&n)*(n.py)); 
+        new_dir.pz = ray->d.pz - (2*dot(&ray->d,&n)*(n.pz)); 
+        double ndotd = dot(&n, &new_dir);
+       
+        // Blur Reflection by random factor
+        struct point3D rand_p; 
+        rand_p.px = exp(1)*drand48() * cos(2*PI*drand48())*hitobj->refl_sig;
+        rand_p.py = exp(1)*drand48() * cos(2*PI*drand48())*hitobj->refl_sig;
+        rand_p.pz = exp(1)*drand48() * cos(2*PI*drand48())*hitobj->refl_sig;
+
+        // adjust new direction
+        if (dot(&rand_p, &new_dir) >= 0)
+        {
+            addVectors(&rand_p, &new_dir);
+        }
+        else
+        {
+            subVectors(&rand_p, &new_dir);
+        }
+      }
+      // refraction
+      if(isrefractive == 1){ 
+        refraction(hitobj, ray, &n, &new_dir);
+      }
+
+      // Set up ray
+      normalize(&new_dir);
+      initRay(next_ray, &p,&new_dir);
+      next_ray->R=ray->R;
+      next_ray->G=ray->G;
+      next_ray->B=ray->B;
+      next_ray->Ir=ray->Ir;
+      next_ray->Ig=ray->Ig;
+      next_ray->Ib=ray->Ib;
+
+      // If it is refractive then we clear hit object
+      if (isrefractive == 1){
+        hitobj = NULL;
+      }
+
+      // Increase number of rays and continue to trace path
+      NUM_RAYS++;
+      PathTrace(next_ray,depth+1,col,hitobj,CEL);
+    }
+    else{
+      // hit a LS
+      if(CEL){
+        // Used to accumalte light
+        ray->Ir += ray->R * hitobj->col.R;
+        ray->Ig += ray->G * hitobj->col.G;
+        ray->Ib += ray->B * hitobj->col.B;
+      }
+      col->R=ray->Ir > 1 ? 1 : ray->Ir;
+      col->G=ray->Ig > 1 ? 1 : ray->Ig;
+      col->B=ray->Ib > 1 ? 1 : ray->Ib;
+    }
+  }else{
+    col->R=ray->Ir;
+    col->G=ray->Ig;
+    col->B=ray->Ib;
+    return;
+  }
+}
+
+int explicitLS(struct ray3D *ray, struct point3D *pt, struct point3D *norm,struct object3D *obj, int *hit_type){
   struct object3D *curr_obj = object_list;
   struct point3D d, p, n;
-  double x,y,z, lambda, a, b, add_light;
-  struct object3D *object;
-  struct ray3D *new_ray;
+  double x, y, z, lambda, a, b, add_light;
+  struct object3D *object = (struct object3D *)calloc(1, sizeof(struct object3D));
+  struct ray3D *next_ray = (struct ray3D *)calloc(1, sizeof(struct ray3D));
   int CEL=1;
-  // Looping through objects
-  while(curr_obj != NULL){
-    //  Check for LS
-    if(curr_obj->isLightSource){
-      (curr_obj->randomPoint)(curr_obj,&x,&y,&z);
-      d.px = x - old_p->px;
-      d.py = y - old_p->py;
-      d.pz = z - old_p->pz;
-      normalize(&d);
-      initRay(new_ray, old_p, &d);
 
-      findFirstHit(new_ray, &lambda, NULL, &object, &p, &n, &a, &b, hit_type);
-      // Check if object is a LS
+  // loop through each object in the object list
+  while(curr_obj != NULL){
+    // find lightsource to cast a ray to
+    if(curr_obj->isLightSource){
+      (curr_obj->randomPoint)(curr_obj, &x, &y, &z);
+      d.px = x - pt->px;
+      d.py = y - pt->py;
+      d.pz = z - pt->pz;
+      normalize(&d);
+      initRay(next_ray, pt, &d);
+
+      findFirstHit(next_ray, &lambda, NULL, &object, &p, &n, &a, &b, hit_type);
       if(object != NULL && object->isLightSource && lambda > 0){
-        add_light = 2 * PI * object->LSweight * -dot(&n, &d) * dot(old_n, &d)/(pow(lambda, 2));
-        if(add_light > 1){
-          add_light = 1;
+        add_light = 2 * PI * object->LSweight * -dot(&n, &d) * dot(norm, &d)/(lambda * lambda);
+
+        // If light is less than 1 then we can add the factor
+        if (add_light < 1){
+          ray->Ir += ray->R * obj->col.R * add_light;
+          ray->Ig += ray->G * obj->col.G * add_light;
+          ray->Ib += ray->B * obj->col.B * add_light;
+        }else{
+          ray->Ir += ray->R * obj->col.R;
+          ray->Ig += ray->G * obj->col.G;
+          ray->Ib += ray->B * obj->col.B;
         }
-        ray->Ir += ray->R * obj->col.R * add_light;
-        ray->Ig += ray->G * obj->col.G * add_light;
-        ray->Ib += ray->B * obj->col.B * add_light;
         CEL = 0;
       }
-      
     }
     curr_obj = curr_obj->next;
   }
@@ -178,7 +302,7 @@ void refraction(struct object3D *obj, struct ray3D *ray, struct point3D *n, stru
 
     // c is dot(-n, b)
     double c;
-    c = dot(&neg_norm, &ray->d);
+    c = -1*dot(&normal, &ray->d);
 
     double r;
     r = n1/n2;
@@ -224,137 +348,6 @@ double maximum (double a,double b,double c)
    }else{
    	return a;
    }
-}
-
-
-
-void PathTrace(struct ray3D *ray, int depth, struct colourRGB *col, struct object3D *Os, int CEL)
-{
-  // Trace one light path through the scene.
-  //
-  // Parameters:
-  //   *ray   -  A pointer to the ray being traced
-  //   depth  -  Current recursion dointer to an RGB epth for recursive raytracing
-  //   *col   - Pcolour structure so you can return the object colour
-  //            at the intersection point of this ray with the closest scene object.
-  //   *Os    - 'Object source' is a pointer to the object from which the ray
-  //            originates so you can discard self-intersections due to numerical
-  //            errors. NULL for rays originating from the center of projection.
-
-  double lambda; // Lambda at intersection
-  double a, b;   // Texture coordinates
-  int hit_type = 0;
-  struct object3D *obj;   // Pointer to object at intersection
-  struct point3D p;       // Intersection point
-  struct point3D n;       // Normal at intersection
-  double R, G, B;         // Handy in case you need to keep track of some RGB colour value
-  double dice;            // Handy to keep a random value
-  struct ray3D *next_ray; // For the new ray to be used in recursive calls
-
-  dice = .5*drand48();
-  if (depth > MAX_DEPTH || dice > maximum(ray->R,ray->G,ray->B)) // Max recursion depth reached. Return black (no light coming into pixel from this path).
-  {
-    col->R = ray->Ir; // These are accumulators, initialized at 0. Whenever we find a source of light these
-    col->G = ray->Ig; // get incremented accordingly. At the end of the recursion, we return whatever light
-    col->B = ray->Ib; // we accumulated into these three values.
-    // hitobj needs to account for both objects and lightsources
-    struct object3D *hitobj = (struct object3D *)calloc(1, sizeof(struct object3D));
-    findFirstHit(ray, &lambda, obj, &hitobj, &p, &n, &a, &b, hit_type);
-    // Check if it's in the viewplane/ we hit an object
-    int isrefractive = -1;
-    if (lambda > 0)
-    {
-      if (hit_type == 1)
-      {
-        // hit an object - random sample
-        // Generate a random number
-        dice = drand48();
-        ray->R *= obj->col.R;
-        ray->G *= obj->col.G;
-        ray->B *= obj->col.B;
-
-        // Check the diffuse 
-        struct point3D new_dir;
-        if (dice < obj->diffPct)
-        {
-          // BRDF 
-          cosWeightedSample(&n, &new_dir);
-          CEL = explicitLS(ray, &p, &n, obj, hit_type);
-          ray->R *= dot(&n, &new_dir);
-          ray->G *= dot(&n, &new_dir);
-          ray->B *= dot(&n, &new_dir);
-        }
-        else
-        {
-          // Reflection
-          new_dir.px = ray->d.px - (2 * dot(&ray->d, &n) * (n.px));
-          new_dir.py = ray->d.py - (2 * dot(&ray->d, &n) * (n.py));
-          new_dir.pz = ray->d.pz - (2 * dot(&ray->d, &n) * (n.pz));
-
-          
-          // FINE TUNEEEEEEEEE BEFORE!!! MULTIPLIED BY exp(1) * drand48() * 
-          struct point3D rand_p;
-          rand_p.px = cos(2 * PI * drand48()) * obj->refl_sig;
-          rand_p.py = cos(2 * PI * drand48()) * obj->refl_sig;
-          rand_p.pz = cos(2 * PI * drand48()) * obj->refl_sig;
-
-          // Alligning the Ray properly
-          if (dot(&rand_p, &new_dir) >= 0){
-            addVectors(&rand_p, &new_dir);
-          }
-          else{
-            subVectors(&rand_p, &new_dir);
-          }
-
-          // Check for refraction
-          if (dice < obj->tranPct / (obj->reflPct + obj->tranPct))
-          {
-            isrefractive = 1;
-            refraction(obj, ray, &n, &new_dir);
-          }
-        }
-
-        // double a = drand48() * PI;            // get random angle from 0 to 2pi
-        // double b = (drand48() - 0.5) * PI;        // get random angle from -pi to pi
-        
-        normalize(&new_dir);
-        struct ray3D next_ray;
-        initRay(&next_ray, &p, &new_dir);
-
-        next_ray.R = ray->R;
-        next_ray.G = ray->G;
-        next_ray.B = ray->B;
-        next_ray.Ir = ray->Ir;
-        next_ray.Ig = ray->Ig;
-        next_ray.Ib = ray->Ib;
-
-        // Path trace recursively
-        if(isrefractive == 1){
-          obj = NULL;
-        }
-        NUM_RAYS++;
-        PathTrace(&next_ray, depth + 1, col, obj, CEL);
-      }
-    
-      else{
-        // hit a LS - BRDF
-        if (obj->isLightSource)
-        {
-          // Used to accumalte light
-          if (CEL)
-          {
-            ray->Ir += ray->R * obj->col.R;
-            ray->Ig += ray->G * obj->col.G;
-            ray->Ib += ray->B * obj->col.B;
-          }
-          col->R = ray->Ir > 1 ? 1 : ray->Ir;
-          col->G = ray->Ig > 1 ? 1 : ray->Ig;
-          col->B = ray->Ib > 1 ? 1 : ray->Ib;
-        }
-      }
-    }
-  }
-  return;
 }
 
 int main(int argc, char *argv[])
@@ -554,4 +547,3 @@ int main(int argc, char *argv[])
  free(wght);
  exit(0);
 }
-
