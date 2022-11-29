@@ -93,6 +93,13 @@ void findFirstHit(struct ray3D *ray, double *lambda, struct object3D *Os, struct
         smallest_lambda = temp_lambda;
         *lambda = temp_lambda;
         *obj = obj_clone;
+
+        if (obj_clone->isLightSource){
+          hit_type = 0;
+        }
+        else{
+          hit_type = 1;
+        }
       }
     }
     // Go to next object in linked list
@@ -102,7 +109,7 @@ void findFirstHit(struct ray3D *ray, double *lambda, struct object3D *Os, struct
 }
 
 
-int explicitLS(struct ray3D *ray, struct point3D *old_p, struct point3D *old_n, struct object3D *obj){
+int explicitLS(struct ray3D *ray, struct point3D *old_p, struct point3D *old_n, struct object3D *obj, int hit_type){
   struct object3D *curr_obj = object_list;
   struct point3D d, p, n;
   double x,y,z, lambda, a, b, add_light;
@@ -118,9 +125,9 @@ int explicitLS(struct ray3D *ray, struct point3D *old_p, struct point3D *old_n, 
       d.py = y - old_p->py;
       d.pz = z - old_p->pz;
       normalize(&d);
-      initRay(new_ray, &old_p, &d);
+      initRay(new_ray, old_p, &d);
 
-      findFirstHit(new_ray, &lambda, NULL, &object, &p, &n, &a, &b);
+      findFirstHit(new_ray, &lambda, NULL, &object, &p, &n, &a, &b, hit_type);
       // Check if object is a LS
       if(object != NULL && object->isLightSource && lambda > 0){
         add_light = 2 * PI * object->LSweight * -dot(&n, &d) * dot(old_n, &d)/(pow(lambda, 2));
@@ -139,11 +146,9 @@ int explicitLS(struct ray3D *ray, struct point3D *old_p, struct point3D *old_n, 
   return CEL;
 }
 
-void refraction(struct object3D *obj, struct point3D *p, struct point3D *n, struct ray3D *ray, struct colourRGB *refract, struct colourRGB *reflect, int depth, struct colourRGB *tmp_col, int CEL){
+void refraction(struct object3D *obj, struct ray3D *ray, struct point3D *n, struct point3D *dir){
   // If the object is refractive  (has index of refraction)
   if (obj->r_index != 1){
-    struct ray3D refracted_ray;
-    refracted_ray.p0 = *p;
     double n1, n2;
 
     struct point3D normal;
@@ -186,25 +191,41 @@ void refraction(struct object3D *obj, struct point3D *p, struct point3D *n, stru
 
     // dt = rb + (rc - sqrt(1-r^2(1-c^2)))n
     double inner_factor = 1 - (pow(r,2) * (1 - pow(c,2)));
-  
 
-    //Check for total internal reflection
-    if (inner_factor < 0 && n1 > n2){
-      refracted_ray.p0 = *p;
-
-      refracted_ray.d.px = rb.px + (r*c - sqrtl(inner_factor)) * normal.px;
-      refracted_ray.d.py = rb.py + (r*c - sqrtl(inner_factor)) * normal.py;
-      refracted_ray.d.pz = rb.pz + (r*c - sqrtl(inner_factor)) * normal.pz;
-        
-      PathTrace(&refracted_ray, depth+1, refract, obj, CEL);
-    }
-    else {
-      refract->R = 0; 
-      refract->G = 0;
-      refract->B = 0;
-    }
+    dir->px = rb.px + (r*c - sqrtl(inner_factor)) * normal.px;
+    dir->py = rb.py + (r*c - sqrtl(inner_factor)) * normal.py;
+    dir->pz = rb.pz + (r*c - sqrtl(inner_factor)) * normal.pz;
   }
 }
+
+// return the maximum double value of a,b,c
+double maximum (double a,double b,double c)
+{
+   if(a>b)
+   {
+      if(a>c)
+      {
+         return a;
+      }
+   }
+   else if(b>a) 
+   {
+      if(b>c)
+      {
+         return b;
+      }
+   }
+   else if(c>b)
+   {
+   	if(c>a)
+      {
+      	return c;
+      }
+   }else{
+   	return a;
+   }
+}
+
 
 
 void PathTrace(struct ray3D *ray, int depth, struct colourRGB *col, struct object3D *Os, int CEL)
@@ -230,7 +251,8 @@ void PathTrace(struct ray3D *ray, int depth, struct colourRGB *col, struct objec
   double dice;            // Handy to keep a random value
   struct ray3D *next_ray; // For the new ray to be used in recursive calls
 
-  if (depth > MAX_DEPTH) // Max recursion depth reached. Return black (no light coming into pixel from this path).
+  dice = .5*drand48();
+  if (depth > MAX_DEPTH || dice > maximum(ray->R,ray->G,ray->B)) // Max recursion depth reached. Return black (no light coming into pixel from this path).
   {
     col->R = ray->Ir; // These are accumulators, initialized at 0. Whenever we find a source of light these
     col->G = ray->Ig; // get incremented accordingly. At the end of the recursion, we return whatever light
@@ -257,7 +279,7 @@ void PathTrace(struct ray3D *ray, int depth, struct colourRGB *col, struct objec
         {
           // BRDF 
           cosWeightedSample(&n, &new_dir);
-          CEL = explicitLS(ray, &p, &n, obj);
+          CEL = explicitLS(ray, &p, &n, obj, hit_type);
           ray->R *= dot(&n, &new_dir);
           ray->G *= dot(&n, &new_dir);
           ray->B *= dot(&n, &new_dir);
@@ -288,7 +310,7 @@ void PathTrace(struct ray3D *ray, int depth, struct colourRGB *col, struct objec
           if (dice < obj->tranPct / (obj->reflPct + obj->tranPct))
           {
             isrefractive = 1;
-            refraction(&n, &new_dir, obj, ray, &obj->col, CEL);
+            refraction(obj, ray, &n, &new_dir);
           }
         }
 

@@ -104,27 +104,25 @@ inline void normalTransform(struct point3D *n_orig, struct point3D *n_transforme
  // TO DO: Complete this function
  ///////////////////////////////////////////
 // Setting transformed ray to be original ray
-  ray_transformed->p0 = ray_orig->p0;
-  ray_transformed->d = ray_orig->d;
+  *n_transformed = *n_orig;
 
-  // Transforming the ray's point by objects inverse transform
-  matVecMult(obj->Tinv, &ray_transformed->p0);
+  // Getting transpose of matrix
+  double obj_T[4][4];
 
-  // Constructing the inverse transpose matrix
-  double Tinv_l[4][4];
-  for (int i = 0; i < 3; i++)
+  for (int i = 0; i < 4; i++)
   {
-    for (int j = 0; j < 3; j++)
+    for (int j = 0; j < 4; j++)
     {
-      Tinv_l[i][j] = obj->Tinv[i][j];
-      Tinv_l[i][3] = 0;
-      Tinv_l[3][i] = 0;
+      obj_T[i][j] = obj->Tinv[j][i];
     }
   }
-  Tinv_l[3][3] = 1;
 
-  // Transforming by linear part of matrix
-  matVecMult(Tinv_l, &ray_transformed->d);
+  // Applying transformation
+  matVecMult(obj_T, n_transformed);
+
+  // Normalize normal!
+  normalize(n_transformed);
+  n_transformed->pw = 1;
 
 }
 
@@ -245,27 +243,18 @@ struct object3D *newCyl(double diffPct, double reflPct, double tranPct, double r
     fprintf(stderr, "Unable to allocate new cylinder, out of memory!\n");
   else
   {
-    cyl->alb.ra = ra;
-    cyl->alb.rd = rd;
-    cyl->alb.rs = rs;
-    cyl->alb.rg = rg;
     cyl->col.R = r;
     cyl->col.G = g;
     cyl->col.B = b;
-    cyl->alpha = alpha;
-    cyl->r_index = R_index;
-    cyl->shinyness = shiny;
     cyl->intersect = &cylIntersect;
     cyl->surfaceCoords = &cylCoordinates;
     cyl->randomPoint = &cylSample;
     cyl->texImg = NULL;
-    cyl->photonMap = NULL;
     cyl->normalMap = NULL;
     memcpy(&cyl->T[0][0], &eye4x4[0][0], 16 * sizeof(double));
     memcpy(&cyl->Tinv[0][0], &eye4x4[0][0], 16 * sizeof(double));
     cyl->textureMap = &texMap;
     cyl->frontAndBack = 0;
-    cyl->photonMapped = 1;
     cyl->normalMapped = 0;
     cyl->isCSG = 0;
     cyl->isLightSource = 0;

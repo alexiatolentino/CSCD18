@@ -177,8 +177,11 @@ int main(int argc, char *argv[]);									// Main raytracing function.
 
 // Raytracing
 void buildScene(void);											// Scene set up. Defines objects and object transformations
-void findFirstHit(struct ray3D *ray, double *lambda, struct object3D *Os, struct object3D **obj, struct point3D *p, struct point3D *n, double *a, double *b);
+void findFirstHit(struct ray3D *ray, double *lambda, struct object3D *Os, struct object3D **obj, struct point3D *p, struct point3D *n, double *a, double *b, int hit_type);
 void rtShade(struct object3D *obj, struct point3D *p, struct point3D *n,struct ray3D *ray, int depth, double a, double b, struct colourRGB *col);
 void PathTrace(struct ray3D *ray, int depth, struct colourRGB *col, struct object3D *Os,int CEL);
 
+//Helper Functions
+int explicitLS(struct ray3D *ray, struct point3D *old_p, struct point3D *old_n, struct object3D *obj);
+void refraction(struct object3D *obj, struct ray3D *ray, struct point3D *n, struct point3D *dir);
 #endif
