@@ -66,33 +66,13 @@ inline void rayTransform(struct ray3D *ray_orig, struct ray3D *ray_transformed, 
  // Transforms a ray using the inverse transform for the specified object. This is so that we can
  // use the intersection test for the canonical object. Note that this has to be done carefully!
 
- ///////////////////////////////////////////
- // TO DO: Complete this function
- ///////////////////////////////////////////
-  // Setting transformed ray to be original ray
-  ray_transformed->p0 = ray_orig->p0;
-  ray_transformed->d = ray_orig->d;
-
-  // Transforming the ray's point by objects inverse transform
   matVecMult(obj->Tinv, &ray_transformed->p0);
-
-  // Constructing the inverse transpose matrix
-  double Tinv_l[4][4];
-  for (int i = 0; i < 3; i++)
-  {
-    for (int j = 0; j < 3; j++)
-    {
-      Tinv_l[i][j] = obj->Tinv[i][j];
-      Tinv_l[i][3] = 0;
-      Tinv_l[3][i] = 0;
+  ray_transformed->d.px=(obj->Tinv[0][0]*ray_orig->d.px+obj->Tinv[0][1]*ray_orig->d.py+obj->Tinv[0][2]*ray_orig->d.pz);
+  ray_transformed->d.py=(obj->Tinv[1][0]*ray_orig->d.px+obj->Tinv[1][1]*ray_orig->d.py+obj->Tinv[1][2]*ray_orig->d.pz);
+  ray_transformed->d.pz=(obj->Tinv[2][0]*ray_orig->d.px+obj->Tinv[2][1]*ray_orig->d.py+obj->Tinv[2][2]*ray_orig->d.pz);
+  ray_transformed->d.pw=1;
     }
-  }
-  Tinv_l[3][3] = 1;
 
-  // Transforming by linear part of matrix
-  matVecMult(Tinv_l, &ray_transformed->d);
-
-}
 inline void normalTransform(struct point3D *n_orig, struct point3D *n_transformed, struct object3D *obj)
 {
  // Computes the normal at an affinely transformed point given the original normal and the
@@ -560,7 +540,7 @@ void cylIntersect(struct object3D *cylinder, struct ray3D *r, double *lambda, st
       if ((opt_lambda < *lambda) || (*lambda == -1))
       {
         *lambda = opt_lambda;
-      }
+  }
     }
   } // Otherwsie NO SOLUTIONS so lambda stays -1
   else
@@ -583,7 +563,7 @@ void cylIntersect(struct object3D *cylinder, struct ray3D *r, double *lambda, st
     *a = acos(p->pz) / (2 * PI);
     *b = (atan(p->py / p->px) + PI / 2) / PI;
     return;
-  }
+}
   else
   {
     *lambda = -1;
@@ -930,11 +910,11 @@ void texMap(struct image *img, double a, double b, double *R, double *G, double 
 
 // Makes sure the coordinates are within bounds
   if (a >= 0 && a <= 1 && b >= 0 && b <= 1) {
-  
+
   // Calulate the width and height scaling factors
   int width_factor = img->sx - 1;
   int height_factor = img->sy - 1;
-
+  
   double u = a;
   double v = b;
 
