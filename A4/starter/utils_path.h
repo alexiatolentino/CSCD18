@@ -156,33 +156,6 @@ inline void rayPosition(struct ray3D *ray, double lambda, struct point3D *pos)
  pos->pw=1;
 }
 
-inline struct ray3D *newRay(struct point3D *p0, struct point3D *d)
-{
- // Allocate a new ray structure and initialize it to the values
- // given by p0 and d. Note that this function DOES NOT normalize
- // d to be a unit vector.
-
- struct ray3D *ray=(struct ray3D *)calloc(1,sizeof(struct ray3D));
- if (!ray) fprintf(stderr,"Out of memory allocating ray structure!\n");
- else
- {
-  memcpy(&ray->p0,p0,sizeof(struct point3D));
-  memcpy(&ray->d,d,sizeof(struct point3D));
-  ray->rayPos=&rayPosition;
-  ray->R=1.0;
-  ray->G=1.0;
-  ray->B=1.0;
-  ray->Ir=0;
-  ray->Ig=0;
-  ray->Ib=0;
-  ray->srcN.px=0;
-  ray->srcN.py=0;
-  ray->srcN.pz=1;
-  ray->srcN.pw=1;
- }
- return(ray);
-}
-
 inline void initRay(struct ray3D *ray, struct point3D *p0, struct point3D *d)
 {
  // Allocate a new ray structure and initialize it to the values

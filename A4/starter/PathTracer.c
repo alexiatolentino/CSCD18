@@ -240,7 +240,7 @@ int explicitLS(struct ray3D *ray, struct point3D *pt, struct point3D *norm,struc
       d.py = y - pt->py;
       d.pz = z - pt->pz;
       normalize(&d);
-      next_ray = newRay(pt,&d);
+      initRay(next_ray, pt,&d);
       findFirstHit(next_ray,&lambda,NULL,&object,&p,&n,&a,&b);
       if(object != NULL){
         if(object->isLightSource && lambda > 0){
