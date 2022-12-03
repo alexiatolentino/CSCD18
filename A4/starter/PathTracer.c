@@ -94,7 +94,7 @@ void findFirstHit(struct ray3D *ray, double *lambda, struct object3D *Os, struct
     
 }
 
-void PathTrace(struct ray3D *ray, int depth, struct colourRGB *col, struct object3D *Os, int CEL)
+void PathTrace(struct ray3D *ray, int depth, struct colourRGB *col, struct object3D *Os, int CEL, struct ray3D *last)
 {
  // Trace one light path through the scene.
  //
@@ -114,7 +114,7 @@ void PathTrace(struct ray3D *ray, int depth, struct colourRGB *col, struct objec
   struct point3D n;		// Normal at intersection
   double R,G,B;			// Handy in case you need to keep track of some RGB colour value
   double dice;			// Handy to keep a random value
-  struct ray3D *next_ray = (struct ray3D *)calloc(1, sizeof(struct ray3D));;	// For the new ray to be used in recursive calls
+  struct ray3D *next_ray = (struct ray3D *)calloc(1, sizeof(struct ray3D));	// For the new ray to be used in recursive calls
 
   dice = .5*drand48();
   if (depth>MAX_DEPTH || dice > maximum(ray->R,ray->G,ray->B))	// Max recursion depth reached. Return black (no light coming into pixel from this path).
@@ -122,6 +122,7 @@ void PathTrace(struct ray3D *ray, int depth, struct colourRGB *col, struct objec
     col->R=ray->Ir;	// These are accumulators, initialized at 0. Whenever we find a source of light these
     col->G=ray->Ig;	// get incremented accordingly. At the end of the recursion, we return whatever light
     col->B=ray->Ib;	// we accumulated into these three values.
+    memcpy(last,ray,sizeof(struct point3D));
     return;
   }
 
@@ -148,12 +149,11 @@ void PathTrace(struct ray3D *ray, int depth, struct colourRGB *col, struct objec
       // BRDF color for next ray
       if(hit_type == 1){ // diffuse
         cosWeightedSample(&n,&new_dir);
-        double ndotd = dot(&n,&new_dir);
         CEL = explicitLS(ray, &p,&n,hitobj);
         // add to accumulator
-        ray->R*=ndotd;
-        ray->G*=ndotd;
-        ray->B*=ndotd;
+        ray->R*=dot(&n,&new_dir);
+        ray->G*=dot(&n,&new_dir);
+        ray->B*=dot(&n,&new_dir);
       }
       //reflection
       else{
@@ -198,7 +198,7 @@ void PathTrace(struct ray3D *ray, int depth, struct colourRGB *col, struct objec
         hitobj = NULL;
       }
       NUM_RAYS++;
-      PathTrace(next_ray,depth+1,col,hitobj,CEL);
+      PathTrace(next_ray,depth+1,col,hitobj,CEL,last);
       free(next_ray);
     }
     // ray hits lightsource
@@ -370,6 +370,7 @@ int main(int argc, char *argv[])
  struct object3D *obj;		// Will need this to process lightsource weights
  double *wght;			// Holds weights for each pixel - to provide log response
  double pct,wt;
+ double eps = 0.00001;
  
  time_t t1,t2;
  FILE *f;
@@ -486,7 +487,7 @@ int main(int argc, char *argv[])
  NUM_RAYS=0;
 
  t1=time(NULL);
-
+ // Original Rendering Pass
  fprintf(stderr,"Rendering pass... ");
  for (k=0; k<num_samples; k++)
  {
@@ -513,20 +514,172 @@ int main(int argc, char *argv[])
     // Create a ray and do the raytracing for this pixel.
     initRay(&ray, &pc,&d);
 
-     wt=*(wght+i+(j*sx));
-     PathTrace(&ray,1, &col,NULL,1);
-     (*(rgbIm+((i+(j*sx))*3)+0))+=col.R*pow(2,-log(wt));
-     (*(rgbIm+((i+(j*sx))*3)+1))+=col.G*pow(2,-log(wt));
-     (*(rgbIm+((i+(j*sx))*3)+2))+=col.B*pow(2,-log(wt));
-     wt+=col.R;
-     wt+=col.G;
-     wt+=col.B;
-     *(wght+i+(j*sx))=wt;
+    struct ray3D *last = (struct ray3D *)calloc(1, sizeof(struct ray3D));
+    struct point3D pt;
+    pt.px = 0;
+    pt.py = 0;
+    pt.pz = 0;
+    initRay(last, &pt, &pt);
+
+    wt=*(wght+i+(j*sx));
+    PathTrace(&ray,1, &col,NULL,1, last);
+    (*(rgbIm+((i+(j*sx))*3)+0))+=col.R*pow(2,-log(wt));
+    (*(rgbIm+((i+(j*sx))*3)+1))+=col.G*pow(2,-log(wt));
+    (*(rgbIm+((i+(j*sx))*3)+2))+=col.B*pow(2,-log(wt));
+    wt+=col.R;
+    wt+=col.G;
+    wt+=col.B;
+    *(wght+i+(j*sx))=wt;
+
+    free(last);
    } // end for i
   } // end for j  
   if (k%25==0)  dataOutput(rgbIm,sx,&output_name[0]);  		// Update output image every 25 passes
  } // End for k 
  t2=time(NULL);
+
+
+ // Rendering Pass with Bi-directional Path Tracing
+ fprintf(stderr,"Bi-directional Path Tracing... ");
+
+ // Variables for ls
+ struct ray3D ray_ls;
+ struct colourRGB col_ls;
+ //Tracing Ray for pixel
+ for (k=0; k<num_samples; k++)
+ {
+  fprintf(stderr,"%d/%d, ",k,num_samples);
+#pragma omp parallel for schedule(dynamic,1) private(i,j,pc,wt,ray,col,d)
+  for (j=0;j<sx;j++)		// For each of the pixels in the image
+  {
+   for (i=0;i<sx;i++)
+   {
+    // SETTING UP INFO FOR PIXEL
+    // Random sample within the pixel's area
+    pc.px=(cam->wl+((i+(drand48()-.5))*du));
+    pc.py=(cam->wt+((j+(drand48()-.5))*dv));
+    pc.pz=cam->f;
+    pc.pw=1;
+
+    // Convert image plane sample coordinates to world coordinates
+    matVecMult(cam->C2W,&pc);
+
+    // Now compute the ray direction
+    memcpy(&d,&pc,sizeof(struct point3D));
+    subVectors(&cam->e,&d);		// Direction is d=pc-e
+    normalize(&d);
+
+
+    // SETTING UP INFO FOR LS RAY
+    // Random sample within LS area for start point
+     struct point3D p_ls,d_ls;
+     struct object3D *obj_clone = object_list;
+     struct ray3D *connectedRay = (struct ray3D *)calloc(1, sizeof(struct ray3D));
+     struct ray3D *last = (struct ray3D *)calloc(1, sizeof(struct ray3D));
+     struct ray3D *last_ls = (struct ray3D *)calloc(1, sizeof(struct ray3D));
+     struct object3D *hitobj;
+     struct object3D *ls_obj;
+     double dice = drand48();
+     double lambda,a,b;
+     struct point3D p,n;
+
+     p_ls.px = 0;
+     p_ls.py = 0;
+     p_ls.pz = 0;
+
+    // Check if connection between ray and ray_ls
+    initRay(connectedRay, &p_ls, &p_ls);
+    initRay(last, &p_ls, &p_ls);
+    initRay(last_ls, &p_ls, &p_ls);
+
+    //Iterate through possible LS
+    while(obj_clone != NULL){
+      double x,y,z;
+      if(obj_clone->isLightSource){
+        //if starting point is unassigned
+        if(p_ls.px == 0 && p_ls.py == 0 && p_ls.pz == 0){
+          (obj_clone->randomPoint)(obj_clone,&x,&y,&z);
+          p_ls.px = x;
+          p_ls.py = y;
+          p_ls.pz = z;
+          normalize(&p_ls);
+          p_ls.pw = 1;
+          ls_obj = obj_clone;
+        }  
+        else if(dice > 0.5 && (p_ls.px != 0 || p_ls.py != 0 || p_ls.pz != 0)){ 
+          // by random chance we change the direction wrt another ls
+          (obj_clone->randomPoint)(obj_clone,&x,&y,&z);
+          p_ls.px = x;
+          p_ls.py = y;
+          p_ls.pz = z;
+          normalize(&p_ls);
+          p_ls.pw = 1;
+          ls_obj = obj_clone;
+        }
+      }
+      obj_clone = obj_clone->next;
+    }
+    
+    // Random Sample Direction
+    d_ls.px = -1+2*dice;
+    d_ls.py = -1+2*dice;
+    d_ls.pz = -1+2*dice;
+    normalize(&d_ls);
+    d_ls.pw = 1;
+
+    // Create a ray and do the raytracing for this pixel.
+    initRay(&ray, &pc,&d);
+    initRay(&ray_ls, &p_ls, &d_ls);
+
+    wt=*(wght+i+(j*sx));
+    PathTrace(&ray,1,&col,NULL,1,last);
+    PathTrace(&ray_ls,1,&col_ls,ls_obj,1,last_ls);
+
+    // Check if connection between ray and ray_ls
+    initRay(connectedRay, &last->p0, &last->p0);
+    subVectors(&last_ls->p0,&connectedRay->d);	//Direction is from end of ray and end of rayls paths
+
+    normalize(&connectedRay->d);
+    findFirstHit(connectedRay, &lambda, NULL,&hitobj,&p,&n,&a,&b);
+
+    // If we did not hit ray_ls end point and intersected something before
+    if(abs(p.px - last_ls->p0.px) < eps && abs(p.px - last_ls->p0.px) < eps && abs(p.px - last_ls->p0.px) < eps ){
+      // Give it the old color it should've been
+      (*(rgbIm+((i+(j*sx))*3)+0))+=col.R*pow(2,-log(wt));
+      (*(rgbIm+((i+(j*sx))*3)+1))+=col.G*pow(2,-log(wt));
+      (*(rgbIm+((i+(j*sx))*3)+2))+=col.B*pow(2,-log(wt));
+      
+      wt+=col.R;
+      wt+=col.G;
+      wt+=col.B;
+      *(wght+i+(j*sx))=wt;
+    }
+    else{ // Adjust by probability of rays hitting eachother
+      //Ray colour up until it's point:
+      //fprintf(stderr, "WOO CONNECT");
+      double alpha = 1/(pow(PI,2)); // Probability that it went in the exact angle of ray_ls
+      (*(rgbIm+((i+(j*sx))*3)+0))+=((1-alpha)*col.R*pow(2,-log(wt)) + alpha*col_ls.R*pow(2,-log(wt)));
+      (*(rgbIm+((i+(j*sx))*3)+1))+=((1-alpha)*col.G*pow(2,-log(wt)) + alpha*col_ls.G*pow(2,-log(wt)));
+      (*(rgbIm+((i+(j*sx))*3)+2))+=((1-alpha)*col.B*pow(2,-log(wt)) + alpha*col_ls.B*pow(2,-log(wt)));
+
+      wt+=((1-alpha)*col.R + alpha*col_ls.R);
+      wt+=((1-alpha)*col.G + alpha*col_ls.G);
+      wt+=((1-alpha)*col.B + alpha*col_ls.B);
+      *(wght+i+(j*sx))=wt;
+    }
+    free(connectedRay);
+    free(last);
+    free(last_ls);
+   } // end for i
+  } // end for j
+    
+  if (k%25==0)  dataOutput(rgbIm,sx,&output_name[0]);  		// Update output image every 25 passes
+ } // End for k 
+ t2=time(NULL);
+
+ 
+ // Output image 
+ dataOutput(rgbIm,sx,&output_name[0]);
 
  fprintf(stderr,"\nDone!\n");
 
