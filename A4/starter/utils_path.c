@@ -379,14 +379,14 @@ void sphereIntersect(struct object3D *sphere, struct ray3D *ray, double *lambda,
   // One solution
   else if (disc == 0)
   {
-    *lambda = ((-1) * B + sqrt(disc)) / A;
+    *lambda = ((-1) * B + sqrtl(disc)) / A;
   }
   // Two solutions
   else if (disc > 0)
   {
     // Setting lambda1 and lambda2
-    double lambda1 = ((-1) * B + sqrt(disc)) / A;
-    double lambda2 = ((-1) * B - sqrt(disc)) / A;
+    double lambda1 = ((-1) * B + sqrtl(disc)) / A;
+    double lambda2 = ((-1) * B - sqrtl(disc)) / A;
 
     // Checking is lambda is in viewplane
     // Assigning smallest lambda
@@ -473,8 +473,8 @@ void cylIntersect(struct object3D *cylinder, struct ray3D *r, double *lambda, st
   // TWO SOLUTIONS
   if (disc > 0)
   {
-    lambda1 = ((-1) * B + sqrt(disc)) / A;
-    lambda2 = ((-1) * B - sqrt(disc)) / A;
+    lambda1 = ((-1) * B + sqrtl(disc)) / A;
+    lambda2 = ((-1) * B - sqrtl(disc)) / A;
 
     // Checking is lambda is in viewplane
     // Assigning smallest lambda
@@ -529,7 +529,7 @@ void cylIntersect(struct object3D *cylinder, struct ray3D *r, double *lambda, st
   // ONE SOLUTION
   else if (disc == 0)
   {
-    opt_lambda = (-1 * B + sqrt(disc)) / (A);
+    opt_lambda = (-1 * B + sqrtl(disc)) / (A);
 
     // Check if z for opt_lambda is within the height of unit cyl
     z = rayclone.p0.pz + opt_lambda * rayclone.d.pz;
@@ -793,11 +793,11 @@ void cosWeightedSample(struct point3D *n, struct point3D *d)
  
  // Random sample on hemisphere with cosine-weighted distribution
  u1=drand48();
- r=sqrt(u1);
+ r=sqrtl(u1);
  theta=2*PI*drand48();
  x=r*cos(theta);
  y=r*sin(theta);
- z=sqrt(1.0-(x*x)-(y*y));
+ z=sqrtl(1.0-(x*x)-(y*y));
  
  // Need a rotation matrix - start with identity
  memset(&R[0][0],0,4*4*sizeof(double));
