@@ -182,7 +182,7 @@ int main(int argc, char *argv[]);
 void buildScene(void);											// Scene set up. Defines objects and object transformations
 void findFirstHit(struct ray3D *ray, double *lambda, struct object3D *Os, struct object3D **obj, struct point3D *p, struct point3D *n, double *a, double *b);
 void rtShade(struct object3D *obj, struct point3D *p, struct point3D *n,struct ray3D *ray, int depth, double a, double b, struct colourRGB *col);
-void PathTrace(struct ray3D *ray, int depth, struct colourRGB *col, struct object3D *Os,int CEL);
+void PathTrace(struct ray3D *ray, int depth, struct colourRGB *col, struct object3D *Os, int CEL);
 double maximum (double a,double b,double c);
 
 // Helpers

@@ -94,7 +94,7 @@ void findFirstHit(struct ray3D *ray, double *lambda, struct object3D *Os, struct
     
 }
 
-void PathTrace(struct ray3D *ray, int depth, struct colourRGB *col, struct object3D *Os, int CEL, struct ray3D *last)
+void PathTrace(struct ray3D *ray, int depth, struct colourRGB *col, struct object3D *Os, int CEL)
 {
  // Trace one light path through the scene.
  //
@@ -122,7 +122,7 @@ void PathTrace(struct ray3D *ray, int depth, struct colourRGB *col, struct objec
     col->R=ray->Ir;	// These are accumulators, initialized at 0. Whenever we find a source of light these
     col->G=ray->Ig;	// get incremented accordingly. At the end of the recursion, we return whatever light
     col->B=ray->Ib;	// we accumulated into these three values.
-    memcpy(last,ray,sizeof(struct point3D));
+    //memcpy(last,ray,sizeof(struct point3D));
     return;
   }
 
@@ -198,7 +198,7 @@ void PathTrace(struct ray3D *ray, int depth, struct colourRGB *col, struct objec
         hitobj = NULL;
       }
       NUM_RAYS++;
-      PathTrace(next_ray,depth+1,col,hitobj,CEL,last);
+      PathTrace(next_ray,depth+1,col,hitobj,CEL);
       free(next_ray);
     }
     // ray hits lightsource
@@ -399,8 +399,8 @@ int main(int argc, char *argv[])
  struct object3D *obj;		// Will need this to process lightsource weights
  double *wght;			// Holds weights for each pixel - to provide log response
  double pct,wt;
- double eps = 0.00001;
- double ap_size = 10;
+ double eps = 0.00001; // epsilon to hold a small number 
+ double ap_size = 1; // apature size
  
  time_t t1,t2;
  FILE *f;
@@ -720,7 +720,7 @@ int main(int argc, char *argv[])
 //  printf("WE HAVE A TOTAL OF: %d Rays connected!", connected_count);
 
 
-  // Depth of field
+// Depth of field
  fprintf(stderr,"Depth of field");
 // Tracing Ray for Pixel
  for (k=0; k<num_samples; k++)
@@ -731,10 +731,15 @@ int main(int argc, char *argv[])
   {
    for (i=0;i<sx;i++)
    {
+    // get x_0 using thin lens eqn
+    // computing x_1 : z diff between POI and center of projection
+    double x_1 = 400 + e.pz;
+    double x_0 = (cam->f + e.pz) - x_1;
+
     // Random sample within the pixel's area
     pc.px=(cam->wl+((i+(drand48()-.5))*du));
     pc.py=(cam->wt+((j+(drand48()-.5))*dv));
-    pc.pz=cam->f;
+    pc.pz=x_0;
     pc.pw=1;
 
     // Convert image plane sample coordinates to world coordinates
@@ -745,30 +750,57 @@ int main(int argc, char *argv[])
     subVectors(&cam->e,&d);		// Direction is d=pc-e
     normalize(&d);
 
-    // get x_0 using thin lens eqn
-    // computing x_1 : z diff between POI and center of projection
-    double x_1 = 200;
-    double x_0 = cam->f - x_1;
     // Create a ray and do the raytracing for this pixel.
     struct ray3D *r_0 = (struct ray3D *)calloc(1, sizeof(struct ray3D));;
     initRay(r_0, &pc,&d);
-    
-    struct ray3D *last = (struct ray3D *)calloc(1, sizeof(struct ray3D));
-    struct point3D pt;
-    pt.px = 0;
-    pt.py = 0;
-    pt.pz = 0;
-    initRay(last, &pt, &pt);
-    PathTrace(&r_0,1, &col,NULL,1, last);
+    // wt=*(wght+i+(j*sx));
+    //PathTrace(r_0,1, &col,NULL,1);
+    /*
+    (*(rgbIm+((i+(j*sx))*3)+0))+=col.R*pow(2,-log(wt));
+    (*(rgbIm+((i+(j*sx))*3)+1))+=col.G*pow(2,-log(wt));
+    (*(rgbIm+((i+(j*sx))*3)+2))+=col.B*pow(2,-log(wt));
+    wt+=col.R;
+    wt+=col.G;
+    wt+=col.B;
+    *(wght+i+(j*sx))=wt; */
 
     //compute p_d of r_0 intersect with plane at distance x_1 along optical axis
     struct point3D p_d;
-    if(r_0->p0.pz == x_1){
-      //find poi
-      p_d.px = r_0->p0.px;
-      p_d.py = r_0->p0.py;
-    }
-    int N = 10;
+    //fprintf(stderr,"PX=%f , PY=%f ,  PZ=%f ",r_0->p0.px, r_0->p0.py, r_0->p0.pz);
+    //fprintf(stderr,"x_1=%f ", x_1);
+
+    
+
+    p_d.px = r_0->p0.px;
+    p_d.py = r_0->p0.py;
+    p_d.pz = 0;
+    /* struct object3D plane;
+    plane.pz = x_1;
+    planeIntersect(&plane,r_0, &lda, &p,&n,&a,&b); */
+   
+  
+    // randomly select point p_0 on apeture
+    // use circle of specified diameter
+    struct point3D p_0;
+    double theta = drand48() * 2* PI;
+    p_0.px = (e.px + cos(theta))*ap_size;
+    p_0.py = (e.py + sin(theta))*ap_size;
+    p_0.pz = x_0;
+    normalize(&p_0);
+    p_0.pw = 1;
+    
+
+    // cast r_i from p_0 towards p_d
+    struct point3D p_ddir = p_d;
+    subVectors(&p_0, &p_ddir);
+    struct ray3D *r_i = (struct ray3D *)calloc(1, sizeof(struct ray3D));
+    initRay(r_i, &p_0, &p_ddir);
+
+    // raytrace r_i and accumulate color onto pix i,j color
+    PathTrace(r_i, 1, &col, NULL, 1);
+    free(r_i);
+    
+    /* int N = 10;
       for(int i=1; i< N; i++){
       // randomly select point p_0 on apeture
       // use circle of specified diameter
@@ -788,15 +820,14 @@ int main(int argc, char *argv[])
       initRay(r_i, &p_0, &p_ddir);
 
       // raytrace r_i and accumulate color onto pix i,j color
-      PathTrace(r_i, 1, &col, NULL, 1, last);
+      PathTrace(r_i, 1, &col, NULL, 1);
       free(r_i);
-      free(last);
-    }
+    } */
     //problem?
     wt=*(wght+i+(j*sx));
-    (*(rgbIm+((i+(j*sx))*3)+0))+=col.R/N*pow(2,-log(wt));
-    (*(rgbIm+((i+(j*sx))*3)+1))+=col.G/N*pow(2,-log(wt));
-    (*(rgbIm+((i+(j*sx))*3)+2))+=col.B/N*pow(2,-log(wt));
+    (*(rgbIm+((i+(j*sx))*3)+0))+=col.R/num_samples*pow(2,-log(wt));
+    (*(rgbIm+((i+(j*sx))*3)+1))+=col.G/num_samples*pow(2,-log(wt));
+    (*(rgbIm+((i+(j*sx))*3)+2))+=col.B/num_samples*pow(2,-log(wt));
     wt+=col.R;
     wt+=col.G;
     wt+=col.B;
@@ -807,7 +838,6 @@ int main(int argc, char *argv[])
   if (k%25==0)  dataOutput(rgbIm,sx,&output_name[0]);  		// Update output image every 25 passes
  } // End for k  
  t2=time(NULL);
-
 
  
  // Output image 
