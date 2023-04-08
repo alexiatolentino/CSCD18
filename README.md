@@ -1,6 +1,8 @@
 # Computer-Graphics-4th-Year-Course
 All Computer Graphics assignments
-![plot](./A4/starter/WE_HAVE_CONQUERED_CG.ppm)
+
+
+![Astronaut Room](./A4/starter/WE_HAVE_CONQUERED_CG.jpeg)
 
 Over the course of 4 months, alongside my partner Reem Al Halabi,
 we created numerous scenes using ray tracing and path tracing algorithms.
